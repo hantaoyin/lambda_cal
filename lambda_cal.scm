@@ -134,13 +134,17 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; evaluate from a file
-(define program (read)) ;; read from stdin
+(define (load-program)
+  (let ((obj (read)))
+    (if (eof-object? obj)
+        '()
+        (cons obj (load-program)))))
 
 ;; For test purpose program can also be defined here.
 ;;
 ;; (define program
 ;;   '((^ x -> y) ((^ x -> x x) (^ x -> x x))))
 
-(display (my-eval program (new-env)))
+;;(display (load-program))
+(display (my-eval (load-program) (new-env)))
 (newline)
-

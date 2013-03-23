@@ -1,4 +1,4 @@
-((^ f b -> b f) (^ f b -> b f)
+(^ f b -> b f) (^ f b -> b f)
 ^ define ->
 
 define (^ x -> x) ^ id ->
@@ -97,4 +97,3 @@ define (^ size -> (fix (^ search n ks ->
 length (searchNQ 6) f x
 ;;length (genList 4) f x
 ;;factorial 3 f x
-)
