@@ -3,16 +3,6 @@
 ;; together. Kudos to waterret.
 (^ f b -> b f) (^ f b -> b f) ^ define -> 
 
-define (^ f x -> x) ^ 0 ->
-define (^ n f x -> f (n f x)) ^ succ ->
-define (^ n f x -> n (^ g h -> h (g f)) (^ u -> x) (^ u -> u)) ^ pred -> 
-
-;; integer arithmetic
-define (^ m n f x -> m f (n f x)) ^ + ->
-define (^ n m -> m pred n) ^ - ->
-define (^ m n f -> m (n f)) ^ * ->
-define (^ m n -> n m) ^ exp ->
-
 ;; Church booleans
 define (^ a b -> a) ^ true ->
 define (^ a b -> b) ^ false ->
@@ -23,14 +13,25 @@ define (^ m x y -> m y x) ^ not -> ;; what's wrong with this?
 define (^ m n -> m (not n) n) ^ xor -> 
 define (^ m n p -> m true (n true p)) ^ or3 ->
 
+;; Church numerals
+define (^ f x -> x) ^ 0 ->
+define (^ n f x -> f (n f x)) ^ succ ->
+define (^ n f x -> n (^ g h -> h (g f)) (^ u -> x) (^ u -> u)) ^ pred -> 
+
+define (^ m n f x -> m f (n f x)) ^ + ->
+define (^ n m -> m pred n) ^ - ->
+define (^ m n f -> m (n f)) ^ * ->
+define (^ m n -> n m) ^ exp ->
+
 ;; predicates on integers
 define (^ n -> n (^ x -> false) true) ^ zero? ->
 define (^ n -> n (^ x -> true) false) ^ positive? ->
 define (^ m n -> positive? (- m n)) ^ > ->
 define (^ m n -> positive? (- n m)) ^ < ->
-define (^ m n -> (> (succ m) n)) ^ >= ->
-define (^ m n -> (< m (succ n))) ^ <= ->
-define (^ m n -> and (>= m n) (>= n m)) ^ = ->
+define (^ m n -> zero? (- n m)) ^ >= ->
+define (^ m n -> zero? (- m n)) ^ <= ->
+;; define (^ m n -> and (>= m n) (>= n m)) ^ = ->
+define (^ m n -> and (zero? (m pred n)) (zero? (n pred m))) ^ = ->
 
 ;; predefined numbers
 define (succ 0) ^ 1 ->
@@ -53,40 +54,48 @@ define (^ p -> p (^ x y -> y)) ^ snd ->
 define (^ f -> (^ x -> f (x x)) (^ x -> f (x x))) ^ Ycomb ->
 
 ;; Lists
+;;
 define (pair true true) ^ nil ->
 define (fst) ^ isnil ->
 define (^ h t -> pair false (pair h t)) ^ cons ->
 define (^ z -> fst (snd z)) ^ car ->
 define (^ z -> snd (snd z)) ^ cdr ->
-define (^ x -> car (cdr x)) ^ cadr ->
 define (define (^ f p ->
                   if (isnil p)
                   0
                   (succ (f (cdr p)))) ^ YFunc ->
           (Ycomb YFunc)) ^ length ->
 
+;; Lists from Pierce
+;; define (^ c n -> n) ^ nil ->
+;; define (^ h t c n -> c h (t c n)) ^ cons ->
+;; define (^ l -> l (^ h t -> false) true) ^ isnil ->
+;; define (^ l -> l (^ h t -> h) false) ^ car ->
+;; define (^ l -> fst (l (^ x p -> pair (snd p) (cons x (snd p)))
+;;                       (pair nil nil))) ^ cdr ->
+
 ;; pseudo recursion
 define (^ f m -> if (zero? m) 1 (* m (f (- m 1)))) ^ Fact ->
 define (Ycomb Fact) ^ factorial ->
 
 ;; choose 
-define (define (^ f n k ->
+define (Ycomb ^ f n k ->
                   if (or (= n k) (= k 0))
                   1
                   (+ (f (pred n) k)
-                     (f (pred n) (pred k)))) ^ Func ->
-                     (Ycomb Func)) ^ choose ->
+                     (f (pred n) (pred k)))) ^ choose ->
 
 define (^ loc status ->
           define (^ f status dist ->
-                    if (isnil status)
-                    true
-                    (if (or3 (= loc (car status))
-                             (= loc (+ (car status) dist))
-                             (= (+ loc dist) (car status)))
-                        false
-                        (f (cdr status) (succ dist)))) ^ YFunc ->
-                        (Ycomb YFunc) status 1) ^ valid-queen? ->
+                        if (isnil status)
+                        true
+                        (define (car status) ^ head ->
+                          if (or3 (= loc head)
+                                  (= loc (+ head dist))
+                                  (= (+ loc dist) head))
+                          false
+                          (f (cdr status) (succ dist)))) ^ YFunc -> 
+                          Ycomb YFunc status 1) ^ valid-queen? ->
 
 define (^ valid-predicate? N ->
           define (^ f dep k status ->
@@ -96,7 +105,7 @@ define (^ valid-predicate? N ->
                             (+ (f (succ dep) 0 (cons k status))
                                (f dep (succ k) status))
                             (f dep (succ k) status)))) ^ YFunc ->
-                            (Ycomb YFunc) 0 0 nil) ^ chess-search ->
+                            Ycomb YFunc 0 0 nil) ^ chess-search ->
 
 define (chess-search valid-queen?) ^ queen-search ->
 
@@ -113,7 +122,6 @@ define (chess-search valid-queen?) ^ queen-search ->
 ;; xor false true t f
 ;; snd (pair true false) t f
 ;; snd (pair (exp 3 10) 3) f x
-;; cadr (cons (exp 3 10) (cons 3 (cons 2 nil))) f x
 ;; >= 2 3 t f
 ;; = (exp 2 3) (exp 2 3) t f
 ;;factorial 3 f x
