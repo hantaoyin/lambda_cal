@@ -1,6 +1,6 @@
-This is a lambda calculus interpreter written in R5RS Scheme.  Its
-lambda calculus uses some custom syntax (a bit similar to Haskell).
-An eight queens program written in lambda calculus is provided for
-benchmark purposes (credit to waterret).
+This is an interpreter for untyped lambda calculus, written in R5RS
+Scheme.  The lambda calculus uses some custom syntax (a bit similar to
+Haskell).  An eight queens program written in lambda calculus is
+provided for benchmark purposes (credit to waterret).
 
 Hantao

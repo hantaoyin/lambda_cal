@@ -1,3 +1,4 @@
+;; -*- mode:scheme -*-
 ;; Define "define" so we can put a function and its definition
 ;; together. Kudos to waterret.
 (^ f b -> b f) (^ f b -> b f) ^ define -> 
@@ -20,6 +21,7 @@ define (^ m n -> m n false) ^ and ->
 define (^ m n -> m true n) ^ or ->
 define (^ m x y -> m y x) ^ not -> ;; what's wrong with this?
 define (^ m n -> m (not n) n) ^ xor -> 
+define (^ m n p -> m true (n true p)) ^ or3 ->
 
 ;; predicates on integers
 define (^ n -> n (^ x -> false) true) ^ zero? ->
@@ -47,16 +49,7 @@ define (^ x y z -> z x y) ^ pair ->
 define (^ p -> p (^ x y -> x)) ^ fst ->
 define (^ p -> p (^ x y -> y)) ^ snd ->
 
-;; triplets
-define (^ x y z t -> t x y z) ^ triplet ->
-define (^ p -> p (^ x y z -> x)) ^ tfst ->
-define (^ p -> p (^ x y z -> y)) ^ tsnd ->
-define (^ p -> p (^ x y z -> z)) ^ ttrd ->
-
-;; Y combinator
-;;
-;; NOTE: Y combinator can only be used to define single variable
-;; functions.
+;; Y combinator, basis for all my resursions
 define (^ f -> (^ x -> f (x x)) (^ x -> f (x x))) ^ Ycomb ->
 
 ;; Lists
@@ -76,45 +69,35 @@ define (define (^ f p ->
 define (^ f m -> if (zero? m) 1 (* m (f (- m 1)))) ^ Fact ->
 define (Ycomb Fact) ^ factorial ->
 
-;; the valid? predicate for eight rooks problem
-define (^ loc status ->
-          define (^ f y ->
-                    if (isnil y)
-                    true
-                    (if (= loc (car y))
-                        false
-                        (f (cdr y)))) ^ YFunc ->
-          ((Ycomb YFunc) status)) ^ valid-rook? ->
+;; choose 
+define (define (^ f n k ->
+                    if (or (= n k) (= k 0))
+                    1
+                    (+ (f (pred n) k)
+                       (f (pred n) (pred k)))) ^ Func ->
+          (Ycomb Func)) ^ choose ->
 
 define (^ loc status ->
-          ;; pair: pr = (status, distance)
-          define (^ f pr ->
-                    if (isnil (fst pr))
+          define (^ f status dist ->
+                    if (isnil status)
                     true
-                    (if (= loc (car (fst pr)))
+                    (if (or3 (= loc (car status))
+                             (= loc (+ (car status) dist))
+                             (= (+ loc dist) (car status)))
                         false
-                        (if (= loc (+ (car (fst pr)) (snd pr)))
-                            false
-                            (if (= (+ loc (snd pr)) (car (fst pr)))
-                                false
-                                (f (pair (cdr (fst pr)) (succ (snd pr)))))))) ^ YFunc ->
-          (Ycomb YFunc) (pair status 1)) ^ valid-queen? ->
+                        (f (cdr status) (succ dist)))) ^ YFunc ->
+          (Ycomb YFunc) status 1) ^ valid-queen? ->
 
 define (^ valid-predicate? N ->
-          ;; triplet: (dep k status)
-          define (define (^ f tp ->
-                            if (= (tfst tp) N)
-                            1
-                            (if (= (tsnd tp) N)
-                                0
-                                (if (valid-predicate? (tsnd tp) (ttrd tp))
-                                    (+ (f (triplet (+ 1 (tfst tp)) 0 (cons (tsnd tp) (ttrd tp))))
-                                       (f (triplet (tfst tp) (+ 1 (tsnd tp)) (ttrd tp))))
-                                    (f (triplet (tfst tp) (+ 1 (tsnd tp)) (ttrd tp)))))) ^ YFunc ->
-                              (Ycomb YFunc)) ^ go ->
-          go (triplet 0 0 nil)) ^ chess-search ->
+          define (^ f dep k status ->
+                    if (= dep N) 1
+                    (if (= k N) 0
+                        (if (valid-predicate? k status)
+                            (+ (f (succ dep) 0 (cons k status))
+                               (f dep (succ k) status))
+                            (f dep (succ k) status)))) ^ YFunc ->
+                            (Ycomb YFunc) 0 0 nil) ^ chess-search ->
 
-define (chess-search valid-rook?) ^ rook-search ->
 define (chess-search valid-queen?) ^ queen-search ->
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -134,8 +117,6 @@ define (chess-search valid-queen?) ^ queen-search ->
 ;; >= 2 3 t f
 ;; = (exp 2 3) (exp 2 3) t f
 ;;factorial 3 f x
-;;valid? 1 nil 1 t f
-;; ttrd (triplet 1 2 3) f x
-;; valid-queen? 6 (cons 2 (cons 3 nil)) t f
 ;; length (cons 1 (cons 2 (cons 3 nil))) f x
+;; choose 10 2 f x
 queen-search 8 f x
