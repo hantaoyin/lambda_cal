@@ -49,7 +49,7 @@ define (^ x y z -> z x y) ^ pair ->
 define (^ p -> p (^ x y -> x)) ^ fst ->
 define (^ p -> p (^ x y -> y)) ^ snd ->
 
-;; Y combinator, basis for all my resursions
+;; Y combinator, basis for resursions
 define (^ f -> (^ x -> f (x x)) (^ x -> f (x x))) ^ Ycomb ->
 
 ;; Lists
@@ -71,11 +71,11 @@ define (Ycomb Fact) ^ factorial ->
 
 ;; choose 
 define (define (^ f n k ->
-                    if (or (= n k) (= k 0))
-                    1
-                    (+ (f (pred n) k)
-                       (f (pred n) (pred k)))) ^ Func ->
-          (Ycomb Func)) ^ choose ->
+                  if (or (= n k) (= k 0))
+                  1
+                  (+ (f (pred n) k)
+                     (f (pred n) (pred k)))) ^ Func ->
+                     (Ycomb Func)) ^ choose ->
 
 define (^ loc status ->
           define (^ f status dist ->
@@ -86,7 +86,7 @@ define (^ loc status ->
                              (= (+ loc dist) (car status)))
                         false
                         (f (cdr status) (succ dist)))) ^ YFunc ->
-          (Ycomb YFunc) status 1) ^ valid-queen? ->
+                        (Ycomb YFunc) status 1) ^ valid-queen? ->
 
 define (^ valid-predicate? N ->
           define (^ f dep k status ->

@@ -140,12 +140,9 @@
         '()
         (cons obj (load-program)))))
 
-;; For test purpose program can also be defined here.
-;;
 ;; (define program
 ;;   '((^ x -> y) ((^ x -> x x) (^ x -> x x))))
 
 ;;(display (load-program))
-
 (display (my-eval (load-program) (new-env)))
 (newline)
