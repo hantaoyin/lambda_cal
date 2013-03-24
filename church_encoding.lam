@@ -1,0 +1,141 @@
+;; Define "define" so we can put a function and its definition
+;; together. Kudos to waterret.
+(^ f b -> b f) (^ f b -> b f) ^ define -> 
+
+define (^ f x -> x) ^ 0 ->
+define (^ n f x -> f (n f x)) ^ succ ->
+define (^ n f x -> n (^ g h -> h (g f)) (^ u -> x) (^ u -> u)) ^ pred -> 
+
+;; integer arithmetic
+define (^ m n f x -> m f (n f x)) ^ + ->
+define (^ n m -> m pred n) ^ - ->
+define (^ m n f -> m (n f)) ^ * ->
+define (^ m n -> n m) ^ exp ->
+
+;; Church booleans
+define (^ a b -> a) ^ true ->
+define (^ a b -> b) ^ false ->
+define (^ predicate then else -> predicate then else) ^ if ->
+define (^ m n -> m n false) ^ and ->
+define (^ m n -> m true n) ^ or ->
+define (^ m x y -> m y x) ^ not -> ;; what's wrong with this?
+define (^ m n -> m (not n) n) ^ xor -> 
+
+;; predicates on integers
+define (^ n -> n (^ x -> false) true) ^ zero? ->
+define (^ n -> n (^ x -> true) false) ^ positive? ->
+define (^ m n -> positive? (- m n)) ^ > ->
+define (^ m n -> positive? (- n m)) ^ < ->
+define (^ m n -> (> (succ m) n)) ^ >= ->
+define (^ m n -> (< m (succ n))) ^ <= ->
+define (^ m n -> and (>= m n) (>= n m)) ^ = ->
+
+;; predefined numbers
+define (succ 0) ^ 1 ->
+define (succ 1) ^ 2 ->
+define (succ 2) ^ 3 ->
+define (succ 3) ^ 4 ->
+define (succ 4) ^ 5 ->
+define (succ 5) ^ 6 ->
+define (succ 6) ^ 7 ->
+define (succ 7) ^ 8 ->
+define (succ 8) ^ 9 ->
+define (succ 9) ^ 10 ->
+
+;; Church pairs
+define (^ x y z -> z x y) ^ pair ->
+define (^ p -> p (^ x y -> x)) ^ fst ->
+define (^ p -> p (^ x y -> y)) ^ snd ->
+
+;; triplets
+define (^ x y z t -> t x y z) ^ triplet ->
+define (^ p -> p (^ x y z -> x)) ^ tfst ->
+define (^ p -> p (^ x y z -> y)) ^ tsnd ->
+define (^ p -> p (^ x y z -> z)) ^ ttrd ->
+
+;; Y combinator
+;;
+;; NOTE: Y combinator can only be used to define single variable
+;; functions.
+define (^ f -> (^ x -> f (x x)) (^ x -> f (x x))) ^ Ycomb ->
+
+;; Lists
+define (pair true true) ^ nil ->
+define (fst) ^ isnil ->
+define (^ h t -> pair false (pair h t)) ^ cons ->
+define (^ z -> fst (snd z)) ^ car ->
+define (^ z -> snd (snd z)) ^ cdr ->
+define (^ x -> car (cdr x)) ^ cadr ->
+define (define (^ f p ->
+                  if (isnil p)
+                  0
+                  (succ (f (cdr p)))) ^ YFunc ->
+          (Ycomb YFunc)) ^ length ->
+
+;; pseudo recursion
+define (^ f m -> if (zero? m) 1 (* m (f (- m 1)))) ^ Fact ->
+define (Ycomb Fact) ^ factorial ->
+
+;; the valid? predicate for eight rooks problem
+define (^ loc status ->
+          define (^ f y ->
+                    if (isnil y)
+                    true
+                    (if (= loc (car y))
+                        false
+                        (f (cdr y)))) ^ YFunc ->
+          ((Ycomb YFunc) status)) ^ valid-rook? ->
+
+define (^ loc status ->
+          ;; pair: pr = (status, distance)
+          define (^ f pr ->
+                    if (isnil (fst pr))
+                    true
+                    (if (= loc (car (fst pr)))
+                        false
+                        (if (= loc (+ (car (fst pr)) (snd pr)))
+                            false
+                            (if (= (+ loc (snd pr)) (car (fst pr)))
+                                false
+                                (f (pair (cdr (fst pr)) (succ (snd pr)))))))) ^ YFunc ->
+          (Ycomb YFunc) (pair status 1)) ^ valid-queen? ->
+
+define (^ valid-predicate? N ->
+          ;; triplet: (dep k status)
+          define (define (^ f tp ->
+                            if (= (tfst tp) N)
+                            1
+                            (if (= (tsnd tp) N)
+                                0
+                                (if (valid-predicate? (tsnd tp) (ttrd tp))
+                                    (+ (f (triplet (+ 1 (tfst tp)) 0 (cons (tsnd tp) (ttrd tp))))
+                                       (f (triplet (tfst tp) (+ 1 (tsnd tp)) (ttrd tp))))
+                                    (f (triplet (tfst tp) (+ 1 (tsnd tp)) (ttrd tp)))))) ^ YFunc ->
+                              (Ycomb YFunc)) ^ go ->
+          go (triplet 0 0 nil)) ^ chess-dfs ->
+
+define (chess-dfs valid-rook?) ^ rook-dfs ->
+define (chess-dfs valid-queen?) ^ queen-dfs ->
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; examples
+
+;; succ 2 f x
+;; pred 5 f x
+;; * 4 5 f x
+;; + 4 5 f x
+;; - 5 4 f x
+;; zero? 2 f x
+;; zero? (exp 2 10) f x
+;; xor false true t f
+;; snd (pair true false) t f
+;; snd (pair (exp 3 10) 3) f x
+;; cadr (cons (exp 3 10) (cons 3 (cons 2 nil))) f x
+;; >= 2 3 t f
+;; = (exp 2 3) (exp 2 3) t f
+;;factorial 3 f x
+;;valid? 1 nil 1 t f
+;; ttrd (triplet 1 2 3) f x
+;; valid-queen? 6 (cons 2 (cons 3 nil)) t f
+;; length (cons 1 (cons 2 (cons 3 nil))) f x
+queen-dfs 8 f x

@@ -94,6 +94,7 @@ define (^ size -> (fix (^ search n ks ->
 	size nil nil)
 ^ searchNR ->
 
-length (searchNQ 6) f x
+;;length (searchNQ 6) f x
 ;;length (genList 4) f x
 ;;factorial 3 f x
+equal (exponential 2 10) (exponential 2 10) t f

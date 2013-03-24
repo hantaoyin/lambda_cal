@@ -116,8 +116,8 @@
       ;; (newline)
       ;; (display "LOOKUP-VAR: ")
       ;; (display exp)
-      ;; (display " ")
-      ;; (display env)
+      ;; (display " -> ")
+      ;; (display (lookup-var exp env))
       ;; (newline)
       (lookup-var exp env)))
 
