@@ -112,10 +112,10 @@ define (^ valid-predicate? N ->
                                        (f (triplet (tfst tp) (+ 1 (tsnd tp)) (ttrd tp))))
                                     (f (triplet (tfst tp) (+ 1 (tsnd tp)) (ttrd tp)))))) ^ YFunc ->
                               (Ycomb YFunc)) ^ go ->
-          go (triplet 0 0 nil)) ^ chess-dfs ->
+          go (triplet 0 0 nil)) ^ chess-search ->
 
-define (chess-dfs valid-rook?) ^ rook-dfs ->
-define (chess-dfs valid-queen?) ^ queen-dfs ->
+define (chess-search valid-rook?) ^ rook-search ->
+define (chess-search valid-queen?) ^ queen-search ->
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; examples
@@ -138,4 +138,4 @@ define (chess-dfs valid-queen?) ^ queen-dfs ->
 ;; ttrd (triplet 1 2 3) f x
 ;; valid-queen? 6 (cons 2 (cons 3 nil)) t f
 ;; length (cons 1 (cons 2 (cons 3 nil))) f x
-queen-dfs 8 f x
+queen-search 8 f x
