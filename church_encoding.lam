@@ -44,6 +44,7 @@ define (succ 6) ^ 7 ->
 define (succ 7) ^ 8 ->
 define (succ 8) ^ 9 ->
 define (succ 9) ^ 10 ->
+define (succ 10) ^ 11 ->
 
 ;; Church pairs
 define (^ x y z -> z x y) ^ pair ->
@@ -64,7 +65,7 @@ define (define (^ f p ->
                   if (isnil p)
                   0
                   (succ (f (cdr p)))) ^ YFunc ->
-          (Ycomb YFunc)) ^ length ->
+                  (Ycomb YFunc)) ^ length ->
 
 ;; Lists from Pierce
 ;; define (^ c n -> n) ^ nil ->
@@ -79,23 +80,23 @@ define (^ f m -> if (zero? m) 1 (* m (f (- m 1)))) ^ Fact ->
 define (Ycomb Fact) ^ factorial ->
 
 ;; choose 
-define (Ycomb ^ f n k ->
-                  if (or (= n k) (= k 0))
-                  1
-                  (+ (f (pred n) k)
-                     (f (pred n) (pred k)))) ^ choose ->
+define (Ycomb ^ f n k -> 
+              if (or (= n k) (= k 0)) 
+              1 
+              (+ (f (pred n) k) 
+                 (f (pred n) (pred k)))) ^ choose ->
 
 define (^ loc status ->
           define (^ f status dist ->
-                        if (isnil status)
-                        true
-                        (define (car status) ^ head ->
-                          if (or3 (= loc head)
-                                  (= loc (+ head dist))
-                                  (= (+ loc dist) head))
-                          false
-                          (f (cdr status) (succ dist)))) ^ YFunc -> 
-                          Ycomb YFunc status 1) ^ valid-queen? ->
+                    if (isnil status)
+                    true
+                    (define (car status) ^ head ->
+                      if (or3 (= loc head)
+                              (= loc (+ head dist))
+                              (= (+ loc dist) head))
+                      false
+                      (f (cdr status) (succ dist)))) ^ YFunc -> 
+                      Ycomb YFunc status 1) ^ valid-queen? ->
 
 define (^ valid-predicate? N ->
           define (^ f dep k status ->

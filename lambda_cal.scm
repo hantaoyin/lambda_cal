@@ -74,6 +74,12 @@
                                  param-val
                                  param-env
                                  base-env)))
+          ;; (newline)
+          ;; (display "RUN-PROC : ")
+          ;; (display param)
+          ;; (display " <- ")
+          ;; (display param-val)
+          ;; (newline)
              (body env)))))
 
   (define (analyze-lambda opnd)
@@ -114,13 +120,12 @@
   (define (analyze-variable exp)
     (lambda (env)
       ;; (newline)
-      ;; (display "LOOKUP-VAR: ")
+      ;; (display "ANALYZE-VAR: ")
       ;; (display exp)
-      ;; (display " -> ")
-      ;; (display (lookup-var exp env))
+      ;; (display " ")
+      ;; (display env)
       ;; (newline)
       (lookup-var exp env)))
-
 
   ;; (newline)
   ;; (display "ANALYZE: ")
@@ -140,9 +145,11 @@
         '()
         (cons obj (load-program)))))
 
-;; (define program
-;;   '((^ x -> y) ((^ x -> x x) (^ x -> x x))))
+(define test-program
+  '(^ x -> x))
 
-;;(display (load-program))
+;; (display (load-program))
+;; (display (my-eval test-program (new-env)))
 (display (my-eval (load-program) (new-env)))
+
 (newline)
