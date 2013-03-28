@@ -2,9 +2,6 @@
 module Main where
 import Text.Parsec
 import Text.Parsec.String
-import Control.Monad
-import Control.Monad.Error
-import System.IO
 
 type Name = String
 type Symbol = String
@@ -19,10 +16,10 @@ showVal :: LamExpr -> String
 showVal (Sym s) = s
 showVal (Lam s v) = "\\" ++ s ++ " -> " ++ showVal v
 showVal (App a b) = showFun a ++ " " ++ showArg b
-        where showArg a@(App _ _) = "(" ++ showVal a ++ ")"
-              showArg a = showVal a
-              showFun a@(Lam _ _) = "(" ++ showVal a ++ ")"
-              showFun a = showVal a
+        where showArg v@(App _ _) = "(" ++ showVal v ++ ")"
+              showArg v = showVal v
+              showFun v@(Lam _ _) = "(" ++ showVal v ++ ")"
+              showFun v = showVal v
         
 readExpr :: String -> LamExpr
 readExpr str = case parse pLamExpr (take 10 str) str of
@@ -90,8 +87,8 @@ showNF :: NForm -> String
 showNF (NSym s) = s
 showNF (NLam _) = "#FUNC"
 showNF (NApp a b) = showNF a ++ " " ++ showArg b
-       where showArg a@(NApp _ _) = "(" ++ showNF a ++ ")"
-             showArg a = showNF a
+       where showArg v@(NApp _ _) = "(" ++ showNF v ++ ")"
+             showArg v = showNF v
 
 newEnv :: Env
 newEnv = Env []
@@ -101,22 +98,19 @@ addBinding s nf (Env old_env) = Env ((s, nf):old_env)
 
 lookupVar :: Symbol -> Env -> NForm
 lookupVar s (Env []) = NSym s
-lookupVar s (Env ((a,v):es)) = case s == a of
-          True -> v
-          False -> lookupVar s (Env es)
+lookupVar s (Env ((a,v):es))
+          | s == a = v
+          | otherwise = lookupVar s (Env es)
 
--- data LamExpr = Sym Symbol
---             | Lam String LamExpr -- 1 parameter functions
---             | App LamExpr LamExpr
-
+--------------------------------------------------------------------------------
 analyzeLambda :: Symbol -> LamExpr -> NForm -> Env -> NForm
 analyzeLambda s expr nf env = analyze expr $ addBinding s nf env
 
 analyzeApp :: LamExpr -> LamExpr -> Env -> NForm
 analyzeApp a b env = let an = analyze a env
                          bn = analyze b env
-                         apply (NLam nfunc) b = nfunc b
-                         apply a@_ b = NApp a b
+                         apply (NLam nfunc) nparam = nfunc nparam
+                         apply x@_ y = NApp x y
                      in apply an bn
 
 analyze :: LamExpr -> Env -> NForm
