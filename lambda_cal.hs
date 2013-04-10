@@ -90,6 +90,7 @@ showDB (BoundSym n) = show n
 showDB (LamDB v) = "-> " ++ showDB v
 showDB (AppDB a b) = showFun a ++ " " ++ showArg b
         where showArg v@(AppDB _ _) = "(" ++ showDB v ++ ")"
+              showArg v@(LamDB _) = "(" ++ showDB v ++ ")"
               showArg v = showDB v
               showFun v@(LamDB _) = "(" ++ showDB v ++ ")"
               showFun v = showDB v
@@ -112,10 +113,10 @@ transformToDB env (Lam sym expr) = LamDB (transformToDB (sym:env) expr)
 transformToDB env (App f p) = AppDB (transformToDB env f) (transformToDB env p)
 
 --------------------------------------------------------------------------------
-data Env = Env [NForm]
+type Env = [NForm]
 
 newEnv :: Env
-newEnv = Env []
+newEnv = []
 
 data NForm = NSym Symbol
            | NLam (NForm -> NForm)
@@ -131,10 +132,10 @@ showNF (NApp a b) = showNF a ++ " " ++ showArg b
              showArg v = showNF v
 
 addBinding :: NForm -> Env -> Env
-addBinding nf (Env old_env) = Env (nf:old_env)
+addBinding nf old_env = nf:old_env
 
 lookupVar :: Int -> Env -> NForm
-lookupVar n (Env xs) = xs !! n
+lookupVar n xs = xs !! n
 
 --------------------------------------------------------------------------------
 -- data LamDeBruijn = UnboundSym String
@@ -161,7 +162,7 @@ analyze (LamDB v) env = NLam (\nf -> analyzeLambda v nf env)
 analyze (AppDB a b) env = analyzeApp a b env
 
 main :: IO ()
-main = do 
+main = do
      val <- getContents
      putStrLn $ show $ transformToDB [] $ readExpr val
      putStrLn ""
