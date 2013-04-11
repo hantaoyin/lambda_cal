@@ -1,6 +1,8 @@
+{-# LANGUAGE QuasiQuotes #-}
 module Main where
 import Text.Parsec
 import Text.Parsec.String
+import StringQQ
 
 type Symbol = String
 
@@ -93,18 +95,38 @@ analyze' env n (App f p) =
         pn = analyze' env (n+1) p
     in "(apply " ++ fn ++ " " ++ pn ++ ")"
 
+analyze :: LamExpr -> String
 analyze = analyze' [] 0
 
 ----------------------------------------------------------------------
 headerStr :: String
-headerStr = "module Main where\n\
-             \import Aux\n"
+headerStr = [stringQQ|
+module Main where
 
-addMain :: String -> String
-addMain s = "main = putStrLn $ show $ " ++ s
+type Symbol = String
+
+data NForm = Sym Symbol
+           | Lam (NForm -> NForm)
+           | App NForm NForm
+
+apply :: NForm -> NForm -> NForm
+apply (Lam f) p = f p
+apply f p = App f p
+
+showNF :: NForm -> String
+showNF (Sym s) = s
+showNF (Lam _) = "#FUNC"
+showNF (App a b) = showNF a ++ " " ++ showArg b
+       where showArg v@(App _ _) = "(" ++ showNF v ++ ")"
+             showArg v = showNF v
+
+instance Show NForm where show = showNF
+
+main = putStrLn $ show $ expr
+|]
 
 main :: IO ()
 main = 
     do val <- getContents
        putStrLn headerStr
-       putStrLn $ addMain $ analyze $ readExpr val
+       putStrLn $ "expr = " ++ (analyze $ readExpr val)

@@ -20,17 +20,16 @@
 -- 
 -- (For GHC versions 6, write "[$s||]" instead of "[s||]".)
 --
-module StringQQ (s) where
+module StringQQ (stringQQ) where
 import GHC.Exts (IsString(..))
-import qualified Language.Haskell.TH as TH
 import Language.Haskell.TH.Quote
 
 -- | QuasiQuoter for a non-interpolating IsString literal. The pattern portion is undefined.
-s :: QuasiQuoter
-s = QuasiQuoter ((\a -> [|fromString a|]) . trimLeadingNewline . removeCRs)
-                 (error "Cannot use q as a pattern")
-                 (error "Cannot use q as a type")
-                 (error "Cannot use q as a dec")
+stringQQ :: QuasiQuoter
+stringQQ = QuasiQuoter ((\a -> [|fromString a|]) . trimLeadingNewline . removeCRs)
+                       (error "Cannot use q as a pattern")
+                       (error "Cannot use q as a type")
+                       (error "Cannot use q as a dec")
     where
     removeCRs = filter (/= '\r')
     trimLeadingNewline ('\n':xs) = xs
