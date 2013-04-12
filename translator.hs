@@ -113,14 +113,17 @@ apply :: NForm -> NForm -> NForm
 apply (Lam f) p = f p
 apply f p = App f p
 
-showNF :: NForm -> String
-showNF (Sym s) = s
-showNF (Lam _) = "#FUNC"
-showNF (App a b) = showNF a ++ " " ++ showArg b
-       where showArg v@(App _ _) = "(" ++ showNF v ++ ")"
-             showArg v = showNF v
+nameList :: [Symbol]
+nameList = map (\x -> [x]) "abcdefghijklmnopqrstuvwxyz" ++ map (("v" ++) . show) [0..]
 
-instance Show NForm where show = showNF
+showNF :: [Symbol] -> NForm -> String
+showNF _ (Sym s) = s
+showNF (x:xs) (Lam f) = "(\\" ++ x ++ " -> " ++ showNF xs (f (Sym x)) ++ ")"
+showNF xs (App a b) = showNF xs a ++ " " ++ showArg xs b
+       where showArg xs v@(App _ _) = "(" ++ showNF xs v ++ ")"
+             showArg xs v = showNF xs v
+
+instance Show NForm where show = showNF nameList
 
 main = putStrLn $ show $ expr
 |]
