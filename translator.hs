@@ -118,10 +118,13 @@ nameList = map (\x -> [x]) "abcdefghijklmnopqrstuvwxyz" ++ map (("v" ++) . show)
 
 showNF :: [Symbol] -> NForm -> String
 showNF _ (Sym s) = s
-showNF (x:xs) (Lam f) = "(\\" ++ x ++ " -> " ++ showNF xs (f (Sym x)) ++ ")"
-showNF xs (App a b) = showNF xs a ++ " " ++ showArg xs b
-       where showArg xs v@(App _ _) = "(" ++ showNF xs v ++ ")"
-             showArg xs v = showNF xs v
+showNF (x:xs) (Lam f) = 
+    let fstr = showNF xs $ f $ Sym x
+    in case head fstr of
+       '\\' -> "\\" ++ x ++ " " ++ tail fstr
+       _    -> "\\" ++ x ++ " -> " ++ fstr
+--showNF (x:xs) (Lam f) = "\\" ++ x ++ " -> " ++ (showNF xs $ f $ Sym x)
+showNF xs (App a b) = showNF xs a ++ " (" ++ showNF xs b ++ ")"
 
 instance Show NForm where show = showNF nameList
 

@@ -78,8 +78,8 @@ genLamList (x:xs) expr = Lam x $ genLamList xs expr
 data LamDeBruijn = UnboundSym String
                  | BoundSym Int
                  | LamDB LamDeBruijn -- 1 parameter functions, we no
-                                   -- longer need to specify the dummy
-                                   -- parameter.
+                                     -- longer need to specify the dummy
+                                     -- parameter.
                  | AppDB LamDeBruijn LamDeBruijn
 
 instance Show LamDeBruijn where show = showDB

@@ -16,74 +16,74 @@
 
 ;; Define "define" so we can put a function and its definition
 ;; together. Kudos to waterret.
-(^ f b -> b f) (^ f b -> b f) ^ define -> 
+(\f b -> b f) (\f b -> b f) \define -> 
 
-define (^ f -> (^ x -> f (x x)) (^ x -> f (x x))) ^ Ycomb ->
+define (\f -> (\x -> f (x x)) (\x -> f (x x))) \Ycomb ->
 
 ;; Church booleans
-define (^ a b -> a) ^ true ->
-define (^ a b -> b) ^ false ->
-define (^ predicate then else -> predicate then else) ^ if ->
-define (^ m n -> m n false) ^ and ->
-define (^ m n -> m true n) ^ or ->
-define (^ m x y -> m y x) ^ not -> ;; what's wrong with this?
-define (^ m n -> m (not n) n) ^ xor -> 
+define (\a b -> a) \true ->
+define (\a b -> b) \false ->
+define (\predicate then else -> predicate then else) \if ->
+define (\m n -> m n false) \and ->
+define (\m n -> m true n) \or ->
+define (\m x y -> m y x) \not -> ;; what's wrong with this?
+define (\m n -> m (not n) n) \xor -> 
 
-define (^ m n p -> m true (n true p)) ^ or3 ->
-define (^ m n p -> xor (xor m n) p) ^ xor3 ->
+define (\m n p -> m true (n true p)) \or3 ->
+define (\m n p -> xor (xor m n) p) \xor3 ->
 
-define (^ x -> x) ^ id ->
+define (\x -> x) \id ->
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-define (^ I O x -> O (O (O (O x)))) ^ 0 ->
-define (^ I O x -> O (O (O (I x)))) ^ 1 ->
-define (^ I O x -> O (O (I (O x)))) ^ 2 ->
-define (^ I O x -> O (O (I (I x)))) ^ 3 ->
-define (^ I O x -> O (I (O (O x)))) ^ 4 ->
-define (^ I O x -> O (I (O (I x)))) ^ 5 ->
-define (^ I O x -> O (I (I (O x)))) ^ 6 ->
-define (^ I O x -> O (I (I (I x)))) ^ 7 ->
-define (^ I O x -> I (O (O (O x)))) ^ 8 ->
-define (^ I O x -> I (O (O (I x)))) ^ 9 ->
-define (^ I O x -> I (O (I (O x)))) ^ A ->
-define (^ I O x -> I (O (I (I x)))) ^ B ->
-define (^ I O x -> I (I (O (O x)))) ^ C ->
-define (^ I O x -> I (I (O (I x)))) ^ D ->
-define (^ I O x -> I (I (I (O x)))) ^ E ->
-define (^ I O x -> I (I (I (I x)))) ^ F ->
+define (\I O x -> O (O (O (O x)))) \0 ->
+define (\I O x -> O (O (O (I x)))) \1 ->
+define (\I O x -> O (O (I (O x)))) \2 ->
+define (\I O x -> O (O (I (I x)))) \3 ->
+define (\I O x -> O (I (O (O x)))) \4 ->
+define (\I O x -> O (I (O (I x)))) \5 ->
+define (\I O x -> O (I (I (O x)))) \6 ->
+define (\I O x -> O (I (I (I x)))) \7 ->
+define (\I O x -> I (O (O (O x)))) \8 ->
+define (\I O x -> I (O (O (I x)))) \9 ->
+define (\I O x -> I (O (I (O x)))) \A ->
+define (\I O x -> I (O (I (I x)))) \B ->
+define (\I O x -> I (I (O (O x)))) \C ->
+define (\I O x -> I (I (O (I x)))) \D ->
+define (\I O x -> I (I (I (O x)))) \E ->
+define (\I O x -> I (I (I (I x)))) \F ->
 
-define (^ n -> n (and false) (and false) true) ^ noBITS ->
+define (\n -> n (and false) (and false) true) \noBITS ->
 
 ;; right shift without adding zero to the left
-define (^ n f g x ->
-          n (^ u v -> v (u f)) (^ u v -> v (u g)) (^ u -> x) (^ u -> u)) ^ raw_shiftR ->
+define (\n f g x ->
+          n (\u v -> v (u f)) (\u v -> v (u g)) (\u -> x) (\u -> u)) \raw_shiftR ->
 
 ;; right shift
-define (^ n f g x ->
-          g (n (^ u v -> v (u f)) (^ u v -> v (u g)) (^ u -> x) (^ u -> u))) ^ shiftR ->
+define (\n f g x ->
+          g (n (\u v -> v (u f)) (\u v -> v (u g)) (\u -> x) (\u -> u))) \shiftR ->
 
-define (^ I O -> O) ^ bit0 ->
-define (^ I O -> I) ^ bit1 ->
+define (\I O -> O) \bit0 ->
+define (\I O -> I) \bit1 ->
 
 ;; The least significant bit of a number. 
-define (^ n f g ->
-          define (^ i j k -> k i) ^ v ->
-          n (^ u -> u f v) (^ u -> u g v) (^ i j -> j i) _ id) ^ LSB ->
+define (\n f g ->
+          define (\i j k -> k i) \v ->
+          n (\u -> u f v) (\u -> u g v) (\i j -> j i) _ id) \LSB ->
 
-define (and) ^ bitAND -> 
-define (or) ^ bitOR ->
-define (xor) ^ bitXOR ->
+define (and) \bitAND -> 
+define (or) \bitOR ->
+define (xor) \bitXOR ->
 
-define (or3) ^ bitOR3 ->
-define (xor3) ^ bitXOR3 ->
+define (or3) \bitOR3 ->
+define (xor3) \bitXOR3 ->
 
 ;; add 2 numbers with carry.
 ;;
 ;; FIXME: this function can only add numbers with the same amount of bits.
-define (define (^ a b c -> bitOR3
-          (bitAND a b) (bitAND b c) (bitAND c a)) ^ cal_carry ->
+define (define (\a b c -> bitOR3
+          (bitAND a b) (bitAND b c) (bitAND c a)) \cal_carry ->
 
-          define (^ ADC n m carry f g x ->
+          define (\ADC n m carry f g x ->
                     if (noBITS (raw_shiftR n))
                     ;; no more bits need to be shifted, we ignore any carry in this case
                     (bitXOR3 (LSB n) (LSB m) carry f g x)
@@ -92,18 +92,18 @@ define (define (^ a b c -> bitOR3
                          (raw_shiftR m)
                          (cal_carry carry (LSB n) (LSB m))
                          f g
-                         (bitXOR3 (LSB n) (LSB m) carry f g x))) ^ Func ->
+                         (bitXOR3 (LSB n) (LSB m) carry f g x))) \Func ->
                          
-                         (Ycomb Func)) ^ ADC ->
+                         (Ycomb Func)) \ADC ->
 
-define (^ m n -> ADC n m bit0) ^ ADD ->
+define (\m n -> ADC n m bit0) \ADD ->
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-define (^ h l f g x -> (h f g (l f g x))) ^ byte ->
-define (^ b3 b2 b1 b0 f g x -> byte b3 b2 f g (byte b1 b0 f g x)) ^ short ->
+define (\h l f g x -> (h f g (l f g x))) \byte ->
+define (\b3 b2 b1 b0 f g x -> byte b3 b2 f g (byte b1 b0 f g x)) \short ->
 
-define (byte D C) ^ B220 ->
-define (byte 0 F) ^ B015 ->
+define (byte D C) \B220 ->
+define (byte 0 F) \B015 ->
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 LSB 7 I O
