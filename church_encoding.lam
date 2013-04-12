@@ -1,114 +1,114 @@
 ;; -*- mode:scheme -*-
 ;; Define "define" so we can put a function and its definition
 ;; together. Kudos to waterret.
-(^ f b -> b f) (^ f b -> b f) ^ define -> 
+(\f b -> b f) (\f b -> b f) \define -> 
 
 ;; Church booleans
-define (^ a b -> a) ^ true ->
-define (^ a b -> b) ^ false ->
-define (^ predicate then else -> predicate then else) ^ if ->
-define (^ m n -> m n false) ^ and ->
-define (^ m n -> m true n) ^ or ->
-define (^ m x y -> m y x) ^ not -> ;; what's wrong with this?
-define (^ m n -> m (not n) n) ^ xor -> 
-define (^ m n p -> m true (n true p)) ^ or3 ->
+define (\a b -> a) \true ->
+define (\a b -> b) \false ->
+define (\predicate then else -> predicate then else) \if ->
+define (\m n -> m n false) \and ->
+define (\m n -> m true n) \or ->
+define (\m x y -> m y x) \not -> ;; what's wrong with this?
+define (\m n -> m (not n) n) \xor -> 
+define (\m n p -> m true (n true p)) \or3 ->
 
 ;; Church numerals
-define (^ f x -> x) ^ 0 ->
-define (^ n f x -> f (n f x)) ^ succ ->
-define (^ n f x -> n (^ g h -> h (g f)) (^ u -> x) (^ u -> u)) ^ pred -> 
+define (\f x -> x) \0 ->
+define (\n f x -> f (n f x)) \succ ->
+define (\n f x -> n (\g h -> h (g f)) (\u -> x) (\u -> u)) \pred -> 
 
-define (^ m n f x -> m f (n f x)) ^ + ->
-define (^ n m -> m pred n) ^ - ->
-define (^ m n f -> m (n f)) ^ * ->
-define (^ m n -> n m) ^ exp ->
+define (\m n f x -> m f (n f x)) \+ ->
+define (\n m -> m pred n) \- ->
+define (\m n f -> m (n f)) \* ->
+define (\m n -> n m) \exp ->
 
 ;; predicates on integers
-define (^ n -> n (^ x -> false) true) ^ zero? ->
-define (^ n -> n (^ x -> true) false) ^ positive? ->
-define (^ m n -> positive? (- m n)) ^ > ->
-define (^ m n -> positive? (- n m)) ^ < ->
-define (^ m n -> zero? (- n m)) ^ >= ->
-define (^ m n -> zero? (- m n)) ^ <= ->
-;; define (^ m n -> and (>= m n) (>= n m)) ^ = ->
-define (^ m n -> and (zero? (m pred n)) (zero? (n pred m))) ^ = ->
+define (\n -> n (\x -> false) true) \zero? ->
+define (\n -> n (\x -> true) false) \positive? ->
+define (\m n -> positive? (- m n)) \> ->
+define (\m n -> positive? (- n m)) \< ->
+define (\m n -> zero? (- n m)) \>= ->
+define (\m n -> zero? (- m n)) \<= ->
+;; define (\m n -> and (>= m n) (>= n m)) \= ->
+define (\m n -> and (zero? (m pred n)) (zero? (n pred m))) \= ->
 
 ;; predefined numbers
-define (succ 0) ^ 1 ->
-define (succ 1) ^ 2 ->
-define (succ 2) ^ 3 ->
-define (succ 3) ^ 4 ->
-define (succ 4) ^ 5 ->
-define (succ 5) ^ 6 ->
-define (succ 6) ^ 7 ->
-define (succ 7) ^ 8 ->
-define (succ 8) ^ 9 ->
-define (succ 9) ^ 10 ->
-define (succ 10) ^ 11 ->
+define (succ 0) \1 ->
+define (succ 1) \2 ->
+define (succ 2) \3 ->
+define (succ 3) \4 ->
+define (succ 4) \5 ->
+define (succ 5) \6 ->
+define (succ 6) \7 ->
+define (succ 7) \8 ->
+define (succ 8) \9 ->
+define (succ 9) \10 ->
+define (succ 10) \11 ->
 
 ;; Church pairs
-define (^ x y z -> z x y) ^ pair ->
-define (^ p -> p (^ x y -> x)) ^ fst ->
-define (^ p -> p (^ x y -> y)) ^ snd ->
+define (\x y z -> z x y) \pair ->
+define (\p -> p (\x y -> x)) \fst ->
+define (\p -> p (\x y -> y)) \snd ->
 
 ;; Y combinator, basis for resursions
-define (^ f -> (^ x -> f (x x)) (^ x -> f (x x))) ^ Ycomb ->
+define (\f -> (\x -> f (x x)) (\x -> f (x x))) \Ycomb ->
 
 ;; Lists
 ;;
-define (pair true true) ^ nil ->
-define (fst) ^ isnil ->
-define (^ h t -> pair false (pair h t)) ^ cons ->
-define (^ z -> fst (snd z)) ^ car ->
-define (^ z -> snd (snd z)) ^ cdr ->
-define (define (^ f p ->
+define (pair true true) \nil ->
+define (fst) \isnil ->
+define (\h t -> pair false (pair h t)) \cons ->
+define (\z -> fst (snd z)) \car ->
+define (\z -> snd (snd z)) \cdr ->
+define (define (\f p ->
                   if (isnil p)
                   0
-                  (succ (f (cdr p)))) ^ YFunc ->
-                  (Ycomb YFunc)) ^ length ->
+                  (succ (f (cdr p)))) \YFunc ->
+                  (Ycomb YFunc)) \length ->
 
 ;; Lists from Pierce
-;; define (^ c n -> n) ^ nil ->
-;; define (^ h t c n -> c h (t c n)) ^ cons ->
-;; define (^ l -> l (^ h t -> false) true) ^ isnil ->
-;; define (^ l -> l (^ h t -> h) false) ^ car ->
-;; define (^ l -> fst (l (^ x p -> pair (snd p) (cons x (snd p)))
-;;                       (pair nil nil))) ^ cdr ->
+;; define (\c n -> n) \nil ->
+;; define (\h t c n -> c h (t c n)) \cons ->
+;; define (\l -> l (\h t -> false) true) \isnil ->
+;; define (\l -> l (\h t -> h) false) \car ->
+;; define (\l -> fst (l (\x p -> pair (snd p) (cons x (snd p)))
+;;                       (pair nil nil))) \cdr ->
 
 ;; pseudo recursion
-define (^ f m -> if (zero? m) 1 (* m (f (- m 1)))) ^ Fact ->
-define (Ycomb Fact) ^ factorial ->
+define (\f m -> if (zero? m) 1 (* m (f (- m 1)))) \Fact ->
+define (Ycomb Fact) \factorial ->
 
 ;; choose 
-define (Ycomb ^ f n k -> 
+define (Ycomb \f n k -> 
               if (or (= n k) (= k 0)) 
               1 
               (+ (f (pred n) k) 
-                 (f (pred n) (pred k)))) ^ choose ->
+                 (f (pred n) (pred k)))) \choose ->
 
-define (^ loc status ->
-          define (^ f status dist ->
+define (\loc status ->
+          define (\f status dist ->
                     if (isnil status)
                     true
-                    (define (car status) ^ head ->
+                    (define (car status) \head ->
                       if (or3 (= loc head)
                               (= loc (+ head dist))
                               (= (+ loc dist) head))
                       false
-                      (f (cdr status) (succ dist)))) ^ YFunc -> 
-                      Ycomb YFunc status 1) ^ valid-queen? ->
+                      (f (cdr status) (succ dist)))) \YFunc -> 
+                      Ycomb YFunc status 1) \valid-queen? ->
 
-define (^ valid-predicate? N ->
-          define (^ f dep k status ->
+define (\valid-predicate? N ->
+          define (\f dep k status ->
                     if (= dep N) 1
                     (if (= k N) 0
                         (if (valid-predicate? k status)
                             (+ (f (succ dep) 0 (cons k status))
                                (f dep (succ k) status))
-                            (f dep (succ k) status)))) ^ YFunc ->
-                            Ycomb YFunc 0 0 nil) ^ chess-search ->
+                            (f dep (succ k) status)))) \YFunc ->
+                            Ycomb YFunc 0 0 nil) \chess-search ->
 
-define (chess-search valid-queen?) ^ queen-search ->
+define (chess-search valid-queen?) \queen-search ->
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; examples
@@ -125,7 +125,7 @@ define (chess-search valid-queen?) ^ queen-search ->
 ;; snd (pair (exp 3 10) 3) f x
 ;; >= 2 3 t f
 ;; = (exp 2 3) (exp 2 3) t f
-;;factorial 3 f x
+;; factorial 3 f x
 ;; length (cons 1 (cons 2 (cons 3 nil))) f x
 ;; choose 10 2 f x
 queen-search 8 f x
