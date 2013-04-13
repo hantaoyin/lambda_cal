@@ -96,7 +96,7 @@ showDB (AppDB a b) = showFun a ++ " " ++ showArg b
               showFun v = showDB v
 
 -- return -1 if not found.
-lookupSym :: [String] -> String -> Int
+lookupSym :: [Symbol] -> Symbol -> Int
 lookupSym env sym = let go [] _ _ = -1
                         go (x:xs) s ret
                            | x == s = ret
@@ -104,7 +104,7 @@ lookupSym env sym = let go [] _ _ = -1
                     in go env sym 0
 
 -- [String] serves as the environment when we do the translation.
-transformToDB :: [String] -> LamExpr -> LamDeBruijn
+transformToDB :: [Symbol] -> LamExpr -> LamDeBruijn
 transformToDB env (Sym sym) = let dbv = lookupSym env sym
                               in if dbv < 0
                                  then UnboundSym sym
@@ -164,6 +164,6 @@ analyze (AppDB a b) env = analyzeApp a b env
 main :: IO ()
 main = do
      val <- getContents
-     putStrLn $ show $ transformToDB [] $ readExpr val
-     putStrLn ""
+     -- putStrLn $ show $ transformToDB [] $ readExpr val
+     -- putStrLn ""
      putStrLn $ show $ analyze (transformToDB [] $ readExpr val) newEnv

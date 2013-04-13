@@ -128,4 +128,4 @@ define (chess-search valid-queen?) \queen-search ->
 ;; factorial 3 f x
 ;; length (cons 1 (cons 2 (cons 3 nil))) f x
 ;; choose 10 2 f x
-queen-search 8
+queen-search 8 f x
