@@ -1,10 +1,13 @@
-all: lambda_cal translator
+all: interpreter C++Front hsFront
 
-lambda_cal: lambda_cal.hs
-	ghc -Wall -O2 --make -o lambda_cal lambda_cal.hs
+interpreter: interpreter.hs Parser.hs
+	ghc -Wall -O2 --make -o $@ $^
 
-translator: translator.hs StringQQ.hs
-	ghc -Wall -O2 --make -o translator translator.hs StringQQ.hs
+C++Front: C++Front.hs StringQQ.hs Parser.hs
+	ghc -Wall -O2 --make -o $@ $^
+
+hsFront: hsFront.hs StringQQ.hs Parser.hs
+	ghc -Wall -O2 --make -o $@ $^
 
 clean :
-	-rm -f lambda_cal translator *.hi *.o
+	-rm -f interpreter C++Front hsFront *.hi *.o
