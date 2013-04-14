@@ -8,6 +8,46 @@
 struct NForm;
 typedef std::shared_ptr<NForm> NForm_ptr;
 // typedef NForm* NForm_ptr;
+// struct NForm_ptr {
+//     NForm *p;
+
+//     NForm_ptr(NForm *_p):p(_p) {
+//         up();
+//     }
+//     NForm_ptr(const NForm_ptr &a) {
+//         p = a.p;
+//         up();
+//     }
+//     const NForm_ptr &operator=(const NForm_ptr &a) {
+//         down();
+//         p = a.p;
+//         up();
+//         return *this;
+//     }
+
+//     void up() {
+//         ++(p->count);
+//     }
+
+//     void down() {
+//         --(p->count);
+//         if(p->count == 0) {
+//             delete p;
+//         }
+//     }
+
+//     ~NForm_ptr() {
+//         down();
+//     }
+
+//     NForm &operator*() {
+//         return *p;
+//     }
+
+//     NForm *operator->() {
+//         return p;
+//     }
+// };
 
 typedef std::function<NForm_ptr (NForm_ptr)> LamFunc;
 
