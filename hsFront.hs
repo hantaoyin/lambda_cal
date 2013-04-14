@@ -42,20 +42,17 @@ apply :: NForm -> NForm -> NForm
 apply (Lam f) p = f p
 apply f p = App f p
 
-nameList :: [Symbol]
-nameList = map (\x -> [x]) "abcdefghijklmnopqrstuvwxyz" ++ map (("v" ++) . show) [0..]
-
-showNF :: [Symbol] -> NForm -> String
-showNF _ (Sym s) = s
-showNF (x:xs) (Lam f) = 
-    let fstr = showNF xs $ f $ Sym x
-    in case head fstr of
-       '\\' -> "\\" ++ x ++ " " ++ tail fstr
-       _    -> "\\" ++ x ++ " -> " ++ fstr
+showNF :: NForm -> String
+showNF (Sym s) = s
+showNF (Lam f) = "#FUNC"
 --showNF (x:xs) (Lam f) = "\\" ++ x ++ " -> " ++ (showNF xs $ f $ Sym x)
-showNF xs (App a b) = showNF xs a ++ " (" ++ showNF xs b ++ ")"
+showNF (App a b) = let showA a@(Lam _) = "(" ++ showNF a ++ ")"
+                       showA a = showNF a
+                       showB b@(App _ _) = "(" ++ showNF b ++ ")"
+                       showB b = showNF b
+                   in showA a ++ " " ++ showB b
 
-instance Show NForm where show = showNF nameList
+instance Show NForm where show = showNF
 
 main = putStrLn $ show $ expr
 |]

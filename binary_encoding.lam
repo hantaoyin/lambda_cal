@@ -106,6 +106,5 @@ define (byte D C) \B220 ->
 define (byte 0 F) \B015 ->
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-LSB 7 I O
 ;; bitXOR3 false true true I O x
-;; ADD (short D C 0 F) (short A 7 4 3) I O x
+ADD (short D C 0 F) (short A 7 4 3) I O x
