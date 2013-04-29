@@ -88,7 +88,7 @@
       prog))
 
 ;; translate to the De Bruijn notation
-(define (toDeBruijn prog)
+(define (to-de-bruijn prog)
   (define (lookup ret env sym)
     (cond ((null? env) sym)
           ((eq? (car env) sym) ret)
@@ -114,6 +114,6 @@
 
 (define test-program '((^ x y -> x x z) a b))
 
-;;(display (my-eval (toDeBruijn (parse test-program)) '()))
-(display (my-eval (toDeBruijn (parse (load-program))) '()))
+;;(display (my-eval (to-de-bruijn (parse test-program)) '()))
+(display (my-eval (to-de-bruijn (parse (load-program))) '()))
 (newline)
