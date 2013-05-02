@@ -19,7 +19,7 @@ compileHelper env (App f p) =
     in "apply(" ++ fn ++ "," ++ pn ++ ")"
 
 compile :: LamExpr -> String
-compile expr = compileHelper [] $ rename expr
+compile = compileHelper [] . rename
 
 addMain :: String -> String
 addMain s = "int main() {std::cout << show(" 

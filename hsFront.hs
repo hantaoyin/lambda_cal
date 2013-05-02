@@ -1,31 +1,24 @@
 {-# LANGUAGE QuasiQuotes #-}
 module Main where
 import LamParser
+import Transformer
 import StringQQ
 
 ----------------------------------------------------------------------
-ren :: Int -> Symbol
-ren n = "v" ++ show n
+compileHelper :: [Symbol] -> LamExpr -> String
+compileHelper env (Sym s) =
+    if elem s env
+    then s
+    else "(Sym " ++ "\"" ++ s ++ "\")"
 
-lookupSym :: [(Symbol, Symbol)] -> Symbol -> Symbol
-lookupSym [] s = "(Sym " ++ "\"" ++ s ++ "\")"
-lookupSym ((x,v):xs) s
-    | s == x = v
-    | otherwise = lookupSym xs s
-
-analyze' :: [(Symbol,Symbol)] -> Int -> LamExpr -> String
-analyze' env _ (Sym s) = lookupSym env s
-analyze' env n (Lam s e) = 
-    let s' = ren n
-        new_env = (s,s'):env
-    in "(Lam (\\" ++ s' ++ " -> " ++ analyze' new_env (n+1) e ++ "))"
-analyze' env n (App f p) =
-    let fn = analyze' env (n+1) f
-        pn = analyze' env (n+1) p
+compileHelper env (Lam s e) = "(Lam (\\" ++ s ++ " -> " ++ compileHelper (s:env) e ++ "))"
+compileHelper env (App f p) =
+    let fn = compileHelper env f
+        pn = compileHelper env p
     in "(apply " ++ fn ++ " " ++ pn ++ ")"
 
-analyze :: LamExpr -> String
-analyze = analyze' [] 0
+compile :: LamExpr -> String
+compile = compileHelper [] . rename
 
 ----------------------------------------------------------------------
 headerStr :: String
@@ -61,4 +54,4 @@ main :: IO ()
 main = 
     do val <- getContents
        putStrLn headerStr
-       putStrLn $ "expr = " ++ (analyze $ readExpr val)
+       putStrLn $ "expr = " ++ (compile $ readExpr val)

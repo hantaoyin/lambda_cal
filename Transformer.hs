@@ -110,17 +110,22 @@ getFreeVar (LamI syms _ _) = syms
 getFreeVar (AppI syms _) = syms
 
 extractInfo :: [Symbol] -> LamExprF -> LamInfo
-extractInfo env (SymF sym) = let dbv = lookupSym env sym
-                            in if dbv < 0
-                               then UbSymI sym
-                               else BSymI sym
-extractInfo env (LamF syms expr) = let einfo = extractInfo (syms ++ env) expr
-                                       efree = getFreeVar einfo
-                                       symlist = foldl' (flip delete) efree syms
-                                   in LamI symlist syms einfo
-extractInfo env (AppF as) = let ais = map (extractInfo env) as
-                                symlist = foldl' union [] $ map getFreeVar ais
-                            in AppI symlist ais
+extractInfo env (SymF sym) =
+    let dbv = lookupSym env sym
+    in if dbv < 0
+       then UbSymI sym
+       else BSymI sym
+
+extractInfo env (LamF syms expr) = 
+    let einfo = extractInfo (syms ++ env) expr
+        efree = getFreeVar einfo
+        symlist = foldl' (flip delete) efree syms
+    in LamI symlist syms einfo
+
+extractInfo env (AppF as) = 
+    let ais = map (extractInfo env) as
+        symlist = foldl' union [] $ map getFreeVar ais
+    in AppI symlist ais
 
 toLamInfo :: LamExprF -> LamInfo
 toLamInfo = extractInfo []
