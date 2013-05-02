@@ -5,7 +5,7 @@ import Text.Parsec.String
 type Symbol = String
 
 data LamExpr = Sym Symbol
-            | Lam String LamExpr -- 1 parameter functions
+            | Lam Symbol LamExpr -- 1 parameter functions
             | App LamExpr LamExpr
 
 instance Show LamExpr where show = showVal

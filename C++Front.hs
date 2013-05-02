@@ -1,32 +1,25 @@
 {-# LANGUAGE QuasiQuotes #-}
 module Main where
 import LamParser
+import Transformer
 import StringQQ
 
 ----------------------------------------------------------------------
 -- compile 
-ren :: Int -> Symbol
-ren n = "v" ++ show n
+compileHelper :: [Symbol] -> LamExpr -> String
+compileHelper env (Sym s) = 
+    if elem s env
+    then s
+    else "NForm_ptr(new NForm(\"" ++ s ++ "\"))"
 
-lookupSym :: [(Symbol, Symbol)] -> Symbol -> Symbol
-lookupSym [] s = "NForm_ptr(new NForm(\"" ++ s ++ "\"))"
-lookupSym ((x,v):xs) s
-    | s == x = v
-    | otherwise = lookupSym xs s
-
-analyze' :: [(Symbol,Symbol)] -> Int -> LamExpr -> String
-analyze' env _ (Sym s) = lookupSym env s
-analyze' env n (Lam s e) = 
-    let s' = ren n
-        new_env = (s,s'):env
-    in "lambda(" ++ s' ++ "," ++ analyze' new_env (n+1) e ++ ")"
-analyze' env n (App f p) =
-    let fn = analyze' env (n+1) f
-        pn = analyze' env (n+1) p
+compileHelper env (Lam s e) = "lambda(" ++ s ++ "," ++ compileHelper (s:env) e ++ ")"
+compileHelper env (App f p) =
+    let fn = compileHelper env f
+        pn = compileHelper env p
     in "apply(" ++ fn ++ "," ++ pn ++ ")"
 
-analyze :: LamExpr -> String
-analyze = analyze' [] 0
+compile :: LamExpr -> String
+compile expr = compileHelper [] $ rename expr
 
 addMain :: String -> String
 addMain s = "int main() {std::cout << show(" 
@@ -44,4 +37,4 @@ main :: IO ()
 main = 
     do val <- getContents
        putStrLn headerStr
-       putStrLn $ addMain $ analyze $ readExpr val
+       putStrLn $ addMain $ compile $ readExpr val
