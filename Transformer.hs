@@ -1,6 +1,6 @@
 module Transformer (rename, ID,
                    LamDeBruijn(..), toDeBruijn,
-                   LamExprI(..), toLamExprI) where
+                   LamExprI(..), toLamExprI, shortShow) where
 import Data.List
 import LamParser
 
@@ -164,3 +164,21 @@ showLamExprI (AppI vs exprs) = "{" ++ intercalate "," vs ++ "} "
                showArg v@(LamI _ _ _ _) = "(" ++ showLamExprI v ++ ")"
                showArg v = showLamExprI v
 
+-- A simpler version, don't delve into nested lambdas.
+shortShowHelper :: LamExprI -> String
+shortShowHelper (UbSymI sym) = sym
+shortShowHelper (BSymI sym) = sym
+shortShowHelper (LamI n vs _ _) = 
+    "\\Lam [" ++ show n ++ "] {" ++ intercalate "," vs ++ "}"
+shortShowHelper (AppI _ exprs) = 
+    intercalate " " $ map showArg exprs
+    where showArg v@(AppI _ _) = "(" ++ shortShowHelper v ++ ")"
+          showArg v@(LamI _ _ _ _) = "(" ++ shortShowHelper v ++ ")"
+          showArg v = shortShowHelper v
+
+shortShow :: LamExprI -> String
+shortShow (LamI n vs xs expr) = 
+    "Lam [" ++ show n ++ "] {" ++ intercalate "," vs ++ "} \\n {" ++
+    intercalate " " xs ++ "} -> " ++
+    shortShowHelper expr
+shortShow v = shortShowHelper v

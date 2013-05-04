@@ -11,6 +11,9 @@ import Data.List
 --              | AppI [Symbol] [LamExprI]
 ----------------------------------------------------------------------
 -- compile 
+callFunc :: String -> String -> String
+callFunc func arg = func ++ "(" ++ arg ++ ")"
+
 idToName :: Int -> String
 idToName n = "_cl_" ++ show n
 
@@ -22,9 +25,9 @@ genClosureLine (LamI n free_vars _ _) =
             if length free_vars == 0
             then ""
             else "," ++ intercalate "," free_vars
-    in "create_closure(" ++ idToName n ++ fv_list ++ ")"
+    in callFunc "create_closure" $ idToName n ++ fv_list
 genClosureLine (AppI _ exprs) =
-    "apply(" ++ intercalate "," (map genClosureLine exprs) ++ ")"
+    callFunc "apply" $ intercalate "," $ map genClosureLine exprs
 
 genClosureBody :: String -> LamExprI -> String
 genClosureBody prefix (UbSymI sym) = prefix ++ sym ++ ";\n"
@@ -32,10 +35,12 @@ genClosureBody prefix (BSymI sym)  = prefix ++ sym ++ ";\n"
 genClosureBody prefix v@(LamI _ _ _ _) =
     prefix ++ genClosureLine v ++ ";\n"
 genClosureBody prefix (AppI _ exprs) =
-    (concatMap (\x -> "    push(" ++ genClosureLine x ++ ");\n") . reverse . tail $ exprs) ++
-    prefix ++ (genClosureLine . head) exprs ++ ";\n"
+    let convertLine x = "    push(" ++ genClosureLine x ++ ");\n"
+    in (concatMap convertLine . reverse . tail $ exprs) ++
+       prefix ++ (genClosureLine $ head exprs) ++ ";\n"
 
 genFreeVars :: [Symbol] -> String
+genFreeVars [] = ""
 genFreeVars xs = 
     let header = "    closure **_fv_ptr = (closure **)(cur_closure + 1);\n"
         go :: Int -> Symbol -> String
@@ -43,34 +48,49 @@ genFreeVars xs =
                    " = _fv_ptr[" ++ show n ++ "];\n"
     in header ++ concat (zipWith go [0..] xs)
 
-genBndVars :: [Symbol] -> String
-genBndVars xs = 
+extractFreeVars :: LamExprI -> [Symbol]
+extractFreeVars (UbSymI sym) = [sym]
+extractFreeVars (BSymI sym) = [sym]
+extractFreeVars (LamI _ free_vars _ _) = free_vars
+extractFreeVars (AppI free_vars _) = free_vars
+
+genBndVars :: [Symbol] -> [Symbol] -> String
+genBndVars xs ys =
     let go :: Int -> Symbol -> String
-        go n sym = "    closure *" ++ sym ++
-                   " = get_param(" ++ show n ++ ");\n"
+        go n sym = if elem sym ys
+                   then "    closure *" ++ sym ++
+                        " = get_param(" ++ show n ++ ");\n"
+                   else ""
     in concat $ zipWith go [0 ..] xs
 
+genDebugComment :: LamExprI -> String
+genDebugComment expr = "/*\n" ++ shortShow expr ++ "\n*/\n"
+
 genClosureDef :: LamExprI -> String
-genClosureDef (LamI n fvs bvs expr) =
-    let nbnd_var = length bvs
-        header = "def_closure(" ++ idToName n ++ ")\n"
-        need_args = "    need_args(" ++ show nbnd_var ++ ");\n"
-        pop_stack = "    pop(" ++ show nbnd_var ++ ");\n"
+genClosureDef lamexpr@(LamI n fvs bvs expr) =
+    let nbnd_var = show $ length bvs
+        debug_info = genDebugComment lamexpr
+        header = (callFunc "def_closure" $ idToName n) ++ "\n"
+        need_args = "    need_args(" ++ nbnd_var ++ ");\n"
+        pop_stack = "    pop(" ++ nbnd_var ++ ");\n"
         body = genClosureBody "    return " expr
-    in header ++ "{\n" ++ need_args ++ 
-       genBndVars bvs ++ 
+    in debug_info ++
+       header ++ 
+       "{\n" ++ 
+       need_args ++ 
+       genBndVars bvs (extractFreeVars expr)++
        pop_stack ++ 
        genFreeVars fvs ++ 
-       body ++ "}\n\n"
+       body ++ 
+       "}\n\n"
 genClosureDef _ = error "FIXME: can't call me for any non-lambda expr."
    
 genAllClosures :: LamExprI -> String
-genAllClosures (UbSymI _) = ""
-genAllClosures (BSymI _) = ""
 genAllClosures v@(LamI _ _ _ body) = 
     genAllClosures body ++ genClosureDef v
 genAllClosures (AppI _ exprs) = 
     concatMap genAllClosures exprs
+genAllClosures _ = ""
 
 createSymbol :: Symbol -> String
 createSymbol sym = "create_ubsym(" ++ sym ++ ",\"" ++ sym ++ "\");\n"
@@ -107,7 +127,7 @@ compile expr =
     genAllClosures expr ++
     genMainPrefix ++
     genClosureBody "    cur_closure = " expr ++
-    genMainPostfix 
+    genMainPostfix
 
 ----------------------------------------------------------------------
 headerStr :: String

@@ -8,7 +8,7 @@
 
 #define ARG_SIZE_MAX 500
 #define RET_SIZE_MAX 500
-#define HEAP_SIZE_MAX 1000000000
+#define HEAP_SIZE_MAX 500000000
 
 struct closure;
 
@@ -174,9 +174,10 @@ closure *run_apply(void)
 #define create_closure(name, ...)                                    \
     make_closure(func_##name, PP_NARG(__VA_ARGS__), ##__VA_ARGS__)
 
-void need_args(size_t n) {
-    assert(arg_size >= n);
-}
+/* void need_args(size_t n) { */
+/*     assert(arg_size >= n); */
+/* } */
+#define need_args(n) assert(arg_size >= n)
 
 closure *get_param(size_t i)
 {
