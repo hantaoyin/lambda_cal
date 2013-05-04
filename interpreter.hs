@@ -54,5 +54,5 @@ analyze (AppDB a b) env = analyzeApp a b env
 main :: IO ()
 main = do
      val <- getContents
-     putStrLn $ show $ toLamInfo $ toLamExprF $ readExpr val
+     putStrLn . show . toLamExprI . readExpr $ val
      putStrLn $ show $ analyze (toDeBruijn $ readExpr val) newEnv

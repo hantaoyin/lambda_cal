@@ -1,7 +1,6 @@
-module Transformer (rename,
+module Transformer (rename, ID,
                    LamDeBruijn(..), toDeBruijn,
-                   LamExprF(..), toLamExprF,
-                   LamInfo(..), toLamInfo) where
+                   LamExprI(..), toLamExprI) where
 import Data.List
 import LamParser
 
@@ -79,8 +78,10 @@ toDeBruijn = transToDB []
 ----------------------------------------------------------------------
 -- Flattern the expression (combine multiple lambdas or applications
 -- into a single one)
+type ID = Int
+
 data LamExprF = SymF Symbol
-          | LamF [Symbol] LamExprF
+          | LamF ID [Symbol] LamExprF
           | AppF [LamExprF]
 
 toLamExprF :: LamExpr -> LamExprF
@@ -88,58 +89,78 @@ toLamExprF (Sym sym) = SymF sym
 toLamExprF (Lam sym expr) =
            let exprf = toLamExprF expr
            in case exprf of
-              LamF syms bodyf -> LamF (sym:syms) bodyf
-              v -> LamF [sym] v
+              LamF _ syms bodyf -> LamF 0 (sym:syms) bodyf
+              v -> LamF 0 [sym] v
 toLamExprF (App a b) = 
            let af = toLamExprF a
                bf = toLamExprF b
            in case af of
               AppF afs -> AppF (afs ++ [bf])
               v -> AppF [v,bf]
+
+----------------------------------------------------------------------
+nameLamHelper :: Int -> LamExprF -> (Int, LamExprF)
+nameLamHelper n v@(SymF _) = (n, v)
+nameLamHelper n (LamF _ xs expr) =
+    let (n', expr') = nameLamHelper (n+1) expr
+    in (n',LamF n xs expr')
+nameLamHelper n (AppF exprs) =
+    let go e (k, es) =
+            let (k',e') = nameLamHelper k e
+            in (k',e':es)
+        (n',exprs') = foldr go (n,[]) exprs
+    in (n', AppF exprs')
+
+nameLam :: LamExprF -> LamExprF
+nameLam expr = 
+    let (_,expr') = nameLamHelper 0 expr
+    in expr'
                         
 ----------------------------------------------------------------------
-data LamInfo = UbSymI Symbol
+data LamExprI = UbSymI Symbol
              | BSymI Symbol
-             | LamI [Symbol] [Symbol] LamInfo
-             | AppI [Symbol] [LamInfo]
+             | LamI ID [Symbol] [Symbol] LamExprI
+             | AppI [Symbol] [LamExprI]
 
-getFreeVar :: LamInfo -> [Symbol]
+getFreeVar :: LamExprI -> [Symbol]
 getFreeVar (UbSymI sym) = [sym]
 getFreeVar (BSymI sym) = [sym]
-getFreeVar (LamI syms _ _) = syms
+getFreeVar (LamI _ syms _ _) = syms
 getFreeVar (AppI syms _) = syms
 
-extractInfo :: [Symbol] -> LamExprF -> LamInfo
+extractInfo :: [Symbol] -> LamExprF -> LamExprI
 extractInfo env (SymF sym) =
     let dbv = lookupSym env sym
     in if dbv < 0
        then UbSymI sym
        else BSymI sym
 
-extractInfo env (LamF syms expr) = 
+extractInfo env (LamF n syms expr) = 
     let einfo = extractInfo (syms ++ env) expr
         efree = getFreeVar einfo
         symlist = foldl' (flip delete) efree syms
-    in LamI symlist syms einfo
+    in LamI n symlist syms einfo
 
 extractInfo env (AppF as) = 
     let ais = map (extractInfo env) as
         symlist = foldl' union [] $ map getFreeVar ais
     in AppI symlist ais
 
-toLamInfo :: LamExprF -> LamInfo
-toLamInfo = extractInfo []
+toLamExprI :: LamExpr -> LamExprI
+toLamExprI = extractInfo [] . nameLam . toLamExprF
 
-instance Show LamInfo where show = showInfo
+instance Show LamExprI where show = showLamExprI
 
-showInfo :: LamInfo -> String
-showInfo (UbSymI sym) = sym
-showInfo (BSymI sym) = sym
-showInfo (LamI vs xs expr) = "\n[" ++ intercalate "," vs ++ "] \\"
-                              ++ intercalate " " xs ++ " -> "
-                              ++ showInfo expr
-showInfo (AppI vs exprs) = "[" ++ intercalate "," vs ++ "] "
+showLamExprI :: LamExprI -> String
+showLamExprI (UbSymI sym) = sym
+showLamExprI (BSymI sym) = sym
+showLamExprI (LamI n vs xs expr) = 
+    "\n{" ++ intercalate "," vs ++ "} [" ++ show n ++ "]\\{" ++
+    intercalate " " xs ++ "} -> " ++
+    showLamExprI expr
+showLamExprI (AppI vs exprs) = "{" ++ intercalate "," vs ++ "} "
                          ++ (intercalate " " $ map showArg exprs)
-         where showArg v@(AppI _ _) = "(" ++ showInfo v ++ ")"
-               showArg v@(LamI _ _ _) = "(" ++ showInfo v ++ ")"
-               showArg v = showInfo v
+         where showArg v@(AppI _ _) = "(" ++ showLamExprI v ++ ")"
+               showArg v@(LamI _ _ _ _) = "(" ++ showLamExprI v ++ ")"
+               showArg v = showLamExprI v
+
