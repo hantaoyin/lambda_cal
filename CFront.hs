@@ -47,17 +47,15 @@ genBndVars :: [Symbol] -> String
 genBndVars xs = 
     let go :: Int -> Symbol -> String
         go n sym = "    closure *" ++ sym ++
-                   " = arg_stack[arg_size - 1 - " ++ 
-                   show n ++ "];\n"
+                   " = get_param(" ++ show n ++ ");\n"
     in concat $ zipWith go [0 ..] xs
-
 
 genClosureDef :: LamExprI -> String
 genClosureDef (LamI n fvs bvs expr) =
     let nbnd_var = length bvs
         header = "def_closure(" ++ idToName n ++ ")\n"
         need_args = "    need_args(" ++ show nbnd_var ++ ");\n"
-        pop_stack = "    arg_size -= " ++ show nbnd_var ++ ";\n"
+        pop_stack = "    pop(" ++ show nbnd_var ++ ");\n"
         body = genClosureBody "    return " expr
     in header ++ "{\n" ++ need_args ++ 
        genBndVars bvs ++ 
@@ -75,7 +73,7 @@ genAllClosures (AppI _ exprs) =
     concatMap genAllClosures exprs
 
 createSymbol :: Symbol -> String
-createSymbol sym = "create_ubsym(" ++ sym ++ ");\n"
+createSymbol sym = "create_ubsym(" ++ sym ++ ",\"" ++ sym ++ "\");\n"
 
 genAllUbSyms :: LamExprI -> String
 genAllUbSyms (UbSymI sym) = createSymbol sym

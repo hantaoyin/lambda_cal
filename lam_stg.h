@@ -1,3 +1,4 @@
+/* mode:c; c-basic-offset:4 */
 #include<stdio.h>
 #include<stdlib.h>
 #include<string.h>
@@ -53,10 +54,16 @@ void push(closure *p)
     arg_stack[arg_size++] = p;
 }
 
-closure *pop(void)
+void pop(size_t n)
 {
-    assert(arg_size > 0);
-    return arg_stack[--arg_size];
+    assert(arg_size >= n);
+    arg_size -= n;
+}
+
+void push_ret(closure *p)
+{
+    assert(ret_size < RET_SIZE_MAX);
+    ret_stack[ret_size++] = p;
 }
 
 closure *alloc_heap(size_t nfv)
@@ -87,34 +94,39 @@ closure *run_next(void)
     }
 }
 
+closure *run_ubsym(void);
+
+#define create_ubsym(name,str)                          \
+    static symbol sym_##name = {{run_ubsym, 0}, str};   \
+    static closure *name = &(sym_##name.c)
+
+create_ubsym(close_paren, ")");
+create_ubsym(param_sep, " ");
+
 void move_arg(void)
 {
-    if(arg_size > 0) {
-        memcpy(ret_stack + ret_size,
-               arg_stack,
-               sizeof(func_ptr) * arg_size);
-        
-        ret_size += arg_size;
-        arg_size = 0;
+    size_t i;
+    for(i = 0; i < arg_size; ++i) {
+        push_ret(arg_stack[i]);
+        push_ret(param_sep);
     }
+    arg_size = 0;
 }
 
 closure *run_ubsym(void)
 {
     char *symbol = (char *)(cur_closure + 1);
 
-    size_t i;
-    for(i = 0; i < arg_size; ++i) {
-        putc('*', stdout);
+    if(arg_size > 0) {
+        putc('(', stdout);
+        push_ret(close_paren);
+        move_arg();
     }
-    move_arg();
-    printf("%s ", symbol);
+
+    printf("%s", symbol);
+
     return run_next();
 }
-
-#define create_ubsym(x) \
-    static symbol sym_##x = {{run_ubsym, 0}, #x};  \
-    static closure *x = &(sym_##x.c)
 
 closure *make_closure(func_ptr func, size_t n, ...)
 {
@@ -149,23 +161,26 @@ closure *run_apply(void)
     return start[0];
 }
 
-#ifndef __VA_NARG__
 /* This is used to get the number of args in a __VA_ARGS__ list. */
 /* Idea from Stefan Reuther, fe5vsq.17c.1@stefan.msgid.phost.de */
-#define __VA_NARG__(...) (sizeof((closure *[]){__VA_ARGS__})/sizeof(closure *))
-#endif
+#define PP_NARG(...) (sizeof((closure *[]){__VA_ARGS__})/sizeof(closure *))
 
 #define apply(...)                                                  \
-    make_closure(run_apply, __VA_NARG__(__VA_ARGS__), __VA_ARGS__)
+    make_closure(run_apply, PP_NARG(__VA_ARGS__), __VA_ARGS__)
 
 /* We use an gcc extension here! */
 /* The ## preceeding __VA_ARGS__ will eat the comma right before it if
    __VA__ARGS__ is empty. */
 #define create_closure(name, ...)                                    \
-    make_closure(func_##name, __VA_NARG__(__VA_ARGS__), ##__VA_ARGS__)
+    make_closure(func_##name, PP_NARG(__VA_ARGS__), ##__VA_ARGS__)
 
 void need_args(size_t n) {
     assert(arg_size >= n);
+}
+
+closure *get_param(size_t i)
+{
+    return arg_stack[arg_size - 1 - i];
 }
 
 #define def_closure(name) \
