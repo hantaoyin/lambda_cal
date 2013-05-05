@@ -64,7 +64,7 @@ genBndVars xs ys =
     in concat $ zipWith go [0 ..] xs
 
 genDebugComment :: LamExprI -> String
-genDebugComment expr = "/*\n" ++ shortShow expr ++ "\n*/\n"
+genDebugComment expr = "// " ++ shortShow expr ++ "\n"
 
 genClosureDef :: LamExprI -> String
 genClosureDef lamexpr@(LamI n fvs bvs expr) =
@@ -83,7 +83,7 @@ genClosureDef lamexpr@(LamI n fvs bvs expr) =
        genFreeVars fvs ++ 
        body ++ 
        "}\n\n"
-genClosureDef _ = error "FIXME: can't call me for any non-lambda expr."
+genClosureDef _ = error "FIXME: can't call me on any non-lambda expr."
    
 genAllClosures :: LamExprI -> String
 genAllClosures v@(LamI _ _ _ body) = 
@@ -126,6 +126,7 @@ compile :: LamExprI -> String
 compile expr = 
     genAllUbSyms expr ++ 
     genAllClosures expr ++
+    genDebugComment expr ++
     genMainPrefix ++
     genClosureBody "    cur_closure = " expr ++
     genMainPostfix
