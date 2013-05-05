@@ -124,7 +124,7 @@ genMainPostfix = [stringQQ|
 
 compile :: LamExprI -> String
 compile expr = 
-    genAllUbSyms expr ++ 
+    genAllUbSyms expr ++ "\n" ++
     genAllClosures expr ++
     genDebugComment expr ++
     genMainPrefix ++

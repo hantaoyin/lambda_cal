@@ -5,10 +5,13 @@
 #include<stdarg.h>
 #include<assert.h>
 #include<stdint.h>
+#include<time.h>
+
+#define GEN_TIMING_INFO
 
 #define ARG_SIZE_MAX 5000
 #define RET_SIZE_MAX 5000
-#define HEAP_SIZE_MAX 5000000
+#define HEAP_SIZE_MAX 1500000
 
 struct closure;
 
@@ -34,8 +37,23 @@ size_t arg_size;
 size_t ret_size;
 size_t heap_size;
 
+////////////////////////////////////////////////////////////////////////
+// timing data, all values are in nanoseconds (although we may not
+// have such an accuracy).
+////////////////////////////////////////////////////////////////////////
+#ifdef GEN_TIMING_INFO
+struct timespec main_start;
+struct timespec main_end;
+long main_time;
+long gc_time;
+#endif
+
 void initialize(void)
 {
+#ifdef GEN_TIMING_INFO
+    clock_gettime(CLOCK_REALTIME, &main_start);
+#endif
+    
     arg_stack = (closure **)malloc(sizeof(closure *) * ARG_SIZE_MAX);
     ret_stack = (closure **)malloc(sizeof(closure *) * RET_SIZE_MAX);
     heap      = (char *)malloc(HEAP_SIZE_MAX);
@@ -46,6 +64,17 @@ void finalize(void)
     free(arg_stack);
     free(ret_stack);
     free(heap);
+
+#ifdef GEN_TIMING_INFO
+    clock_gettime(CLOCK_REALTIME, &main_end);
+
+    main_time += (main_end.tv_sec - main_start.tv_sec) * 1000000000L
+        + main_end.tv_nsec - main_start.tv_nsec;
+
+    printf("\n\nTotal time = %.3f seconds\n", main_time / 1.0e9);
+    printf("   GC time = %.3f seconds\n", gc_time / 1.0e9);
+    printf("  %%GC time = %.3f%%\n", 100.0 * (double)gc_time / main_time);
+#endif
 }
 
 closure *alloc_heap(size_t nfv)
@@ -125,6 +154,11 @@ void gc(void)
         return;
     }
 
+#ifdef GEN_TIMING_INFO
+    struct timespec tsc0;
+    clock_gettime(CLOCK_REALTIME, &tsc0);
+#endif
+
     char *old_heap = heap;
     heap = (char *)malloc(HEAP_SIZE_MAX);
     if(heap == NULL) {
@@ -144,6 +178,14 @@ void gc(void)
     }
 
     free(old_heap);
+
+#ifdef GEN_TIMING_INFO
+    struct timespec tsc1;
+    clock_gettime(CLOCK_REALTIME, &tsc1);
+
+    gc_time += (tsc1.tv_sec - tsc0.tv_sec) * 1000000000L
+        + tsc1.tv_nsec - tsc0.tv_nsec;
+#endif
 }
 
 void push(closure *p)
