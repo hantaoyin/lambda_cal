@@ -116,6 +116,7 @@ genMainPostfix = [stringQQ|
 
     while(1) {
         cur_closure = cur_closure->code();
+        gc();
     };
     return 0;
 }
@@ -139,8 +140,5 @@ headerStr = [stringQQ|
 main :: IO ()
 main = 
     do val <- getContents
-       -- putStrLn "/*"
-       -- putStrLn . show . toLamExprI . rename $ readExpr val
-       -- putStrLn "*/"
        putStrLn headerStr
        putStrLn . compile . toLamExprI . rename $ readExpr val

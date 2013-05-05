@@ -6,9 +6,9 @@
 #include<assert.h>
 #include<stdint.h>
 
-#define ARG_SIZE_MAX 500
-#define RET_SIZE_MAX 500
-#define HEAP_SIZE_MAX 500000000
+#define ARG_SIZE_MAX 5000
+#define RET_SIZE_MAX 5000
+#define HEAP_SIZE_MAX 5000000
 
 struct closure;
 
@@ -48,6 +48,104 @@ void finalize(void)
     free(heap);
 }
 
+closure *alloc_heap(size_t nfv)
+{
+    size_t mysize = sizeof(closure) + sizeof(closure *) * nfv;
+    heap_size += mysize;
+    assert(heap_size < HEAP_SIZE_MAX);
+    return (closure *)(heap + heap_size - mysize);
+}
+
+void panic(char *p)
+{
+    fprintf(stderr, "%s\n", p);
+    exit(-1);
+}
+
+////////////////////////////////////////////////////////////////////////
+// Garbage collection
+////////////////////////////////////////////////////////////////////////
+
+closure *run_ubsym(void);
+closure *try_move(closure *p);
+
+// Recursively move a closure to its new home and return a pointer to
+// the new closure.  We put a redirection struct in the old place so
+// any potential references can find its new location.
+//
+// Upon a successful move of the closure, we set the original closure
+// to the following:
+//
+// 1. Its function pointer code is set to NULL, this serves as a flag
+// so we know that it has been moved. A valid closure can not have its
+// code pointer equal to NULL.
+//
+// 2. Its free variable counter fv_cnt is set to the offset of the
+// moved closure in the new heap, so we can find the new closure.
+//
+// As a side note for 2, we can in most cases store directly the
+// pointer instead of an offset in fv_cnt. But there is one case I
+// found that a data pointer has more bits than size_t.
+closure *move_closure(closure *p)
+{
+    assert(p->code != NULL);
+
+    size_t mysize = sizeof(closure) + sizeof(closure *) * p->fv_cnt;
+    size_t offset = heap_size;
+    closure *pnew = alloc_heap(p->fv_cnt);
+
+    memcpy(pnew, p, mysize);
+
+    closure **fv_ptr = (closure **)(pnew + 1);
+
+    size_t i;
+    for(i = 0; i < p->fv_cnt; ++i) {
+        fv_ptr[i] = try_move(fv_ptr[i]);
+    }
+    p->code = NULL;
+    p->fv_cnt = offset;
+    return pnew;
+}
+
+closure *try_move(closure *p)
+{
+    if(p->code == NULL) {
+        return (closure *)(heap + p->fv_cnt);
+    } else if(p->code == run_ubsym) {
+        return p;
+    } else {
+        return move_closure(p);
+    }
+}
+
+void gc(void)
+{
+    // I have some ad hoc condition here to test if I need GC.
+    if(heap_size * 1.1 <= HEAP_SIZE_MAX) {
+        return;
+    }
+
+    char *old_heap = heap;
+    heap = (char *)malloc(HEAP_SIZE_MAX);
+    if(heap == NULL) {
+        panic("Panic: out of memory during gc.");
+    }
+
+    heap_size = 0;
+
+    cur_closure = try_move(cur_closure);
+
+    size_t i;
+    for(i = 0; i < arg_size; ++i) {
+        arg_stack[i] = try_move(arg_stack[i]);
+    }
+    for(i = 0; i < ret_size; ++i) {
+        ret_stack[i] = try_move(ret_stack[i]);
+    }
+
+    free(old_heap);
+}
+
 void push(closure *p)
 {
     assert(arg_size < ARG_SIZE_MAX);
@@ -66,18 +164,9 @@ void push_ret(closure *p)
     ret_stack[ret_size++] = p;
 }
 
-closure *alloc_heap(size_t nfv)
-{
-    size_t mysize = sizeof(closure) + sizeof(closure *) * nfv;
-    heap_size += mysize;
-    assert(heap_size < HEAP_SIZE_MAX);
-    return (closure *)(heap + heap_size - mysize);
-}
-
 closure *my_halt(void)
 {
     puts("");
-    printf("maximum heap used = %lu\n", heap_size);
     finalize();
     exit(0);
     return NULL;
@@ -93,8 +182,6 @@ closure *run_next(void)
         return &halt;
     }
 }
-
-closure *run_ubsym(void);
 
 #define create_ubsym(name,str)                          \
     static symbol sym_##name = {{run_ubsym, 0}, str};   \
