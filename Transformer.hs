@@ -158,8 +158,7 @@ showLamExprI (LamI n vs xs expr) =
     "\n{" ++ intercalate "," vs ++ "} [" ++ show n ++ "]\\{" ++
     intercalate " " xs ++ "} -> " ++
     showLamExprI expr
-showLamExprI (AppI vs exprs) = "{" ++ intercalate "," vs ++ "} "
-                         ++ (intercalate " " $ map showArg exprs)
+showLamExprI (AppI _ exprs) = intercalate " " $ map showArg exprs
          where showArg v@(AppI _ _) = "(" ++ showLamExprI v ++ ")"
                showArg v@(LamI _ _ _ _) = "(" ++ showLamExprI v ++ ")"
                showArg v = showLamExprI v

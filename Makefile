@@ -15,5 +15,6 @@ CFront: CFront.hs Transformer.hs StringQQ.hs Parser.hs
 hsFront: hsFront.hs StringQQ.hs Parser.hs
 	ghc -Wall -O2 --make -o $@ $^
 
-clean :
+clean:
 	-rm -f interpreter C++Front C++Front2 CFront hsFront *.hi *.o
+	-rm -f test test.* a.out

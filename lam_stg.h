@@ -3,15 +3,17 @@
 #include<stdlib.h>
 #include<string.h>
 #include<stdarg.h>
-#include<assert.h>
 #include<stdint.h>
 #include<time.h>
 
 #define GEN_TIMING_INFO
 
 #define ARG_SIZE_MAX 5000
-#define RET_SIZE_MAX 5000
-#define HEAP_SIZE_MAX 1500000
+#define RET_SIZE_MAX 50000
+#define HEAP_SIZE_MAX 2000000
+
+//#define NDEBUG
+#include<assert.h>
 
 struct closure;
 
@@ -32,6 +34,7 @@ closure *cur_closure;
 closure **arg_stack;
 closure **ret_stack;
 char *heap;
+char *old_heap;
 
 size_t arg_size;
 size_t ret_size;
@@ -57,6 +60,7 @@ void initialize(void)
     arg_stack = (closure **)malloc(sizeof(closure *) * ARG_SIZE_MAX);
     ret_stack = (closure **)malloc(sizeof(closure *) * RET_SIZE_MAX);
     heap      = (char *)malloc(HEAP_SIZE_MAX);
+    old_heap  = (char *)malloc(HEAP_SIZE_MAX);
 }
 
 void finalize(void)
@@ -64,13 +68,14 @@ void finalize(void)
     free(arg_stack);
     free(ret_stack);
     free(heap);
+    free(old_heap);
 
 #ifdef GEN_TIMING_INFO
     clock_gettime(CLOCK_REALTIME, &main_end);
-
+    
     main_time += (main_end.tv_sec - main_start.tv_sec) * 1000000000L
         + main_end.tv_nsec - main_start.tv_nsec;
-
+    
     printf("\n\nTotal time = %.3f seconds\n", main_time / 1.0e9);
     printf("   GC time = %.3f seconds\n", gc_time / 1.0e9);
     printf("  %%GC time = %.3f%%\n", 100.0 * (double)gc_time / main_time);
@@ -159,11 +164,9 @@ void gc(void)
     clock_gettime(CLOCK_REALTIME, &tsc0);
 #endif
 
-    char *old_heap = heap;
-    heap = (char *)malloc(HEAP_SIZE_MAX);
-    if(heap == NULL) {
-        panic("Panic: out of memory during gc.");
-    }
+    char *tmp = heap;
+    heap = old_heap;
+    old_heap = tmp;
 
     heap_size = 0;
 
@@ -176,8 +179,6 @@ void gc(void)
     for(i = 0; i < ret_size; ++i) {
         ret_stack[i] = try_move(ret_stack[i]);
     }
-
-    free(old_heap);
 
 #ifdef GEN_TIMING_INFO
     struct timespec tsc1;
@@ -242,6 +243,11 @@ void move_arg(void)
     arg_size = 0;
 }
 
+// FIXME: push a close_paren object onto the return stack may cause a
+// stack overflow if there are too many consecutive close parentheses
+// in the output.
+//
+// How can I solve this problem?
 closure *run_ubsym(void)
 {
     char *symbol = (char *)(cur_closure + 1);
