@@ -162,13 +162,14 @@ closure *move(closure *src)
     }
 }
 
+// I have some ad hoc condition here to test if I need GC.
+static inline _Bool need_gc(void)
+{
+    return heap_size * 1.1 > HEAP_SIZE_MAX;
+}
+
 void gc(void)
 {
-    // I have some ad hoc condition here to test if I need GC.
-    if(heap_size * 1.1 <= HEAP_SIZE_MAX) {
-        return;
-    }
-
 #ifdef GEN_TIMING_INFO
     struct timespec tsc0;
     clock_gettime(CLOCK_REALTIME, &tsc0);
@@ -225,7 +226,7 @@ void gc(void)
 ////////////////////////////////////////////////////////////////////////
 // other generic operations
 ////////////////////////////////////////////////////////////////////////
-int need_update(void)
+_Bool need_update(void)
 {
     return upd_size > 0;
 }
@@ -443,6 +444,7 @@ void fill_ind_info(closure *src, closure *dst)
 {
     assert(src->fv_cnt >= 1);
     src->code = run_indirection;
+
     closure **fv_ptr = (closure **)(src + 1);
     fv_ptr[0] = dst;
 }

@@ -48,27 +48,30 @@ showDB :: LamDeBruijn -> String
 showDB (UnboundSym s) = s
 showDB (BoundSym n) = show n
 showDB (LamDB v) = "-> " ++ showDB v
-showDB (AppDB a b) = showFun a ++ " " ++ showArg b
-        where showArg v@(AppDB _ _) = "(" ++ showDB v ++ ")"
-              showArg v@(LamDB _) = "(" ++ showDB v ++ ")"
-              showArg v = showDB v
-              showFun v@(LamDB _) = "(" ++ showDB v ++ ")"
-              showFun v = showDB v
+showDB (AppDB a b) = 
+    let showArg v@(AppDB _ _) = "(" ++ showDB v ++ ")"
+        showArg v@(LamDB _) = "(" ++ showDB v ++ ")"
+        showArg v = showDB v
+        showFun v@(LamDB _) = "(" ++ showDB v ++ ")"
+        showFun v = showDB v
+    in showFun a ++ " " ++ showArg b
 
 -- return -1 if not found.
 lookupSym :: [Symbol] -> Symbol -> Int
-lookupSym env sym = let go [] _ _ = -1
-                        go (x:xs) s ret
-                           | x == s = ret
-                           | otherwise = go xs s (ret + 1)
-                    in go env sym 0
+lookupSym env sym = 
+    let go [] _ _ = -1
+        go (x:xs) s ret
+           | x == s = ret
+           | otherwise = go xs s (ret + 1)
+    in go env sym 0
 
 -- [String] serves as the environment when we do the translation.
 transToDB :: [Symbol] -> LamExpr -> LamDeBruijn
-transToDB env (Sym sym) = let dbv = lookupSym env sym
-                              in if dbv < 0
-                                 then UnboundSym sym
-                                 else BoundSym dbv
+transToDB env (Sym sym) = 
+    let dbv = lookupSym env sym
+    in if dbv < 0
+       then UnboundSym sym
+       else BoundSym dbv
 transToDB env (Lam sym expr) = LamDB (transToDB (sym:env) expr)
 transToDB env (App f p) = AppDB (transToDB env f) (transToDB env p)
 
@@ -87,16 +90,16 @@ data LamExprF = SymF Symbol
 toLamExprF :: LamExpr -> LamExprF
 toLamExprF (Sym sym) = SymF sym
 toLamExprF (Lam sym expr) =
-           let exprf = toLamExprF expr
-           in case exprf of
-              LamF _ syms bodyf -> LamF 0 (sym:syms) bodyf
-              v -> LamF 0 [sym] v
+    let exprf = toLamExprF expr
+    in case exprf of
+            LamF _ syms bodyf -> LamF 0 (sym:syms) bodyf
+            v -> LamF 0 [sym] v
 toLamExprF (App a b) = 
-           let af = toLamExprF a
-               bf = toLamExprF b
-           in case af of
-              AppF afs -> AppF (afs ++ [bf])
-              v -> AppF [v,bf]
+    let af = toLamExprF a
+        bf = toLamExprF b
+    in case af of
+       AppF afs -> AppF (afs ++ [bf])
+       v -> AppF [v,bf]
 
 ----------------------------------------------------------------------
 nameLamHelper :: Int -> LamExprF -> (Int, LamExprF)
@@ -161,10 +164,11 @@ showLamExprI (LamI n vs xs expr) =
     "\n{" ++ intercalate "," vs ++ "} [" ++ show n ++ "]\\{" ++
     intercalate " " xs ++ "} -> " ++
     showLamExprI expr
-showLamExprI (AppI _ exprs) = intercalate " " $ map showArg exprs
-         where showArg v@(AppI _ _) = "(" ++ showLamExprI v ++ ")"
-               showArg v@(LamI _ _ _ _) = "(" ++ showLamExprI v ++ ")"
-               showArg v = showLamExprI v
+showLamExprI (AppI _ exprs) = 
+    let showArg v@(AppI _ _) = "(" ++ showLamExprI v ++ ")"
+        showArg v@(LamI _ _ _ _) = "(" ++ showLamExprI v ++ ")"
+        showArg v = showLamExprI v
+    in intercalate " " $ map showArg exprs
 
 -- A simpler version, don't delve into nested lambdas.
 shortShowHelper :: LamExprI -> String
@@ -173,10 +177,10 @@ shortShowHelper (BSymI sym) = sym
 shortShowHelper (LamI n vs _ _) = 
     "\\Lam [" ++ show n ++ "] {" ++ intercalate "," vs ++ "}"
 shortShowHelper (AppI _ exprs) = 
-    intercalate " " $ map showArg exprs
-    where showArg v@(AppI _ _) = "(" ++ shortShowHelper v ++ ")"
-          showArg v@(LamI _ _ _ _) = "(" ++ shortShowHelper v ++ ")"
-          showArg v = shortShowHelper v
+    let showArg v@(AppI _ _) = "(" ++ shortShowHelper v ++ ")"
+        showArg v@(LamI _ _ _ _) = "(" ++ shortShowHelper v ++ ")"
+        showArg v = shortShowHelper v
+    in intercalate " " $ map showArg exprs
 
 shortShow :: LamExprI -> String
 shortShow (LamI n vs xs expr) = 

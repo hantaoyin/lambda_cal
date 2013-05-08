@@ -23,7 +23,6 @@ genAllUbSyms (BSymI _) = ""
 genAllUbSyms (LamI _ fvs _ _) = concatMap createSymbol fvs
 genAllUbSyms (AppI fvs _) = concatMap createSymbol fvs
 
-
 callFunc :: String -> String -> String
 callFunc func arg = func ++ "(" ++ arg ++ ")"
 
@@ -65,7 +64,7 @@ genClosureLine (LamI n fvs _ _) =
         fv_list = concatMap ("," ++) fvs
     in callFunc ("make_closure" ++ show fv_cnt) $ idToName n ++ fv_list
 genClosureLine (AppI _ exprs) =
-    let applyn = "make_closure" ++ (show $ length exprs) ++ "(prepare_upd,"
+    let applyn = "make_closure" ++ (show $ length exprs) ++ "(run_apply,"
     in applyn ++ (intercalate "," $ map genClosureLine exprs) ++ ")"
 
 genClosureBody :: String -> LamExprI -> String
@@ -136,7 +135,10 @@ genMainPostfix = [stringQQ|
 
     while(1) {
         cur_closure = cur_closure->code();
-        gc();
+        if(need_gc()) {
+            gc();
+        }
+
     };
     return 0;
 }
