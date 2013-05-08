@@ -1,6 +1,6 @@
-module Transformer (rename, ID,
+module Transformer (rename, ID, FreeVars, Params,
                    LamDeBruijn(..), toDeBruijn,
-                   LamExprI(..), toLamExprI, shortShow) where
+                   LamExprI(..), getFreeVars, toLamExprI, shortShow) where
 import Data.List
 import LamParser
 
@@ -117,16 +117,19 @@ nameLam expr =
     in expr'
                         
 ----------------------------------------------------------------------
+type FreeVars = [Symbol]
+type Params = [Symbol]
+
 data LamExprI = UbSymI Symbol
              | BSymI Symbol
-             | LamI ID [Symbol] [Symbol] LamExprI
-             | AppI [Symbol] [LamExprI]
+             | LamI ID FreeVars Params LamExprI
+             | AppI FreeVars [LamExprI]
 
-getFreeVar :: LamExprI -> [Symbol]
-getFreeVar (UbSymI sym) = [sym]
-getFreeVar (BSymI sym) = [sym]
-getFreeVar (LamI _ syms _ _) = syms
-getFreeVar (AppI syms _) = syms
+getFreeVars :: LamExprI -> [Symbol]
+getFreeVars (UbSymI sym) = [sym]
+getFreeVars (BSymI sym) = [sym]
+getFreeVars (LamI _ syms _ _) = syms
+getFreeVars (AppI syms _) = syms
 
 extractInfo :: [Symbol] -> LamExprF -> LamExprI
 extractInfo env (SymF sym) =
@@ -137,13 +140,13 @@ extractInfo env (SymF sym) =
 
 extractInfo env (LamF n syms expr) = 
     let einfo = extractInfo (syms ++ env) expr
-        efree = getFreeVar einfo
+        efree = getFreeVars einfo
         symlist = foldl' (flip delete) efree syms
     in LamI n symlist syms einfo
 
 extractInfo env (AppF as) = 
     let ais = map (extractInfo env) as
-        symlist = foldl' union [] $ map getFreeVar ais
+        symlist = foldl' union [] $ map getFreeVars ais
     in AppI symlist ais
 
 toLamExprI :: LamExpr -> LamExprI

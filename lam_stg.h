@@ -116,11 +116,13 @@ void panic(char *p)
 ////////////////////////////////////////////////////////////////////////
 
 closure *run_ubsym(void);
-closure *try_move(closure *p);
+closure *run_indirection(void);
 
-// Recursively move a closure to its new home and return a pointer to
-// the new closure.  We put a redirection struct in the old place so
-// any potential references can find its new location.
+// Move a closure to its new home and return a pointer to the new
+// closure.  We put a redirection struct in the old place so any
+// potential references can find its new location. The new heap is
+// also used as a queue when we iterate through all closures using
+// BFS.
 //
 // Upon a successful move of the closure, we set the original closure
 // to the following:
@@ -135,39 +137,28 @@ closure *try_move(closure *p);
 // As a side note for 2, we can in most cases store directly the
 // pointer instead of an offset in fv_cnt. But there is one case I
 // found that a data pointer has more bits than size_t.
-closure *move_closure(closure *p)
+closure *move(closure *src)
 {
-    assert(p->code != NULL);
-
-    size_t mysize = sizeof(closure) + sizeof(closure *) * p->fv_cnt;
-    size_t offset = heap_size;
-    closure *pnew = alloc_heap(p->fv_cnt);
-
-    memcpy(pnew, p, mysize);
-
-    closure **fv_ptr = (closure **)(pnew + 1);
-
-    size_t i;
-    for(i = 0; i < p->fv_cnt; ++i) {
-        fv_ptr[i] = try_move(fv_ptr[i]);
+    while(src->code == run_indirection) {
+        closure **fv_ptr = (closure **)(src + 1);
+        src = fv_ptr[0];
     }
-    p->code = NULL;
-    p->fv_cnt = offset;
-    return pnew;
-}
 
-closure *run_indirection(void);
-closure *try_move(closure *p)
-{
-    if(p->code == NULL) {
-        return (closure *)(heap + p->fv_cnt);
-    } else if(p->code == run_ubsym) {
-        return p;
-    } else if(p->code == run_indirection) {
-        closure **fv_ptr = (closure **)(p + 1);
-        return try_move(fv_ptr[0]);
+    if(src->code == NULL) {
+        return (closure *)(heap + src->fv_cnt);
+    } else if(src->code == run_ubsym) {
+        return src;
     } else {
-        return move_closure(p);
+        size_t mysize = sizeof(closure) + sizeof(closure *) * src->fv_cnt;
+        size_t offset = heap_size;
+        closure *dst = alloc_heap(src->fv_cnt);
+
+        memcpy(dst, src, mysize);
+
+        src->code = NULL;
+        src->fv_cnt = offset;
+
+        return dst;
     }
 }
 
@@ -189,23 +180,38 @@ void gc(void)
 
     heap_size = 0;
 
-    cur_closure = try_move(cur_closure);
+    cur_closure = move(cur_closure);
 
     size_t i;
     size_t arg_total = arg_size + (arg_fp - arg_base);
     for(i = 0; i < arg_total; ++i) {
-        arg_base[i] = try_move(arg_base[i]);
+        arg_base[i] = move(arg_base[i]);
     }
 
     size_t ret_total = ret_size + (ret_fp - ret_base);
     for(i = 0; i < ret_total; ++i) {
-        ret_base[i] = try_move(ret_base[i]);
+        ret_base[i] = move(ret_base[i]);
     }
 
     for(i = 0; i < upd_size; ++i) {
         upd_base[i].updatable =
-            try_move(upd_base[i].updatable);
+            move(upd_base[i].updatable);
     }
+
+    size_t finalized = 0;
+    while(finalized < heap_size) {
+        closure *p = (closure *)(heap + finalized);
+        if(p->fv_cnt > 0) {
+            closure **fv_ptr = (closure **)(p + 1);
+
+            size_t i;
+            for(i = 0; i < p->fv_cnt; ++i) {
+                fv_ptr[i] = move(fv_ptr[i]);
+            }
+        }
+        finalized += sizeof(closure) + sizeof(closure *) * p->fv_cnt;
+    }
+
 
 #ifdef GEN_TIMING_INFO
     struct timespec tsc1;
@@ -219,7 +225,7 @@ void gc(void)
 ////////////////////////////////////////////////////////////////////////
 // other generic operations
 ////////////////////////////////////////////////////////////////////////
-_Bool need_update(void)
+int need_update(void)
 {
     return upd_size > 0;
 }
@@ -259,7 +265,7 @@ void push_upd_frame(void)
     ++upd_size;
 }
 
-// pop 1 (one) update frame
+// pop an update frame
 void pop_upd_frame(void)
 {
     assert(upd_size > 0);
@@ -351,6 +357,23 @@ closure *make_closure(func_ptr func, size_t n, ...)
     return ret;
 }
 
+/* This is used to get the number of args in a __VA_ARGS__ list. */
+/* Idea from Stefan Reuther, fe5vsq.17c.1@stefan.msgid.phost.de */
+#define PP_NARG(...) (sizeof((closure *[]){__VA_ARGS__})/sizeof(closure *))
+
+#define apply(...)                                                  \
+    make_closure(prepare_upd, PP_NARG(__VA_ARGS__), __VA_ARGS__)
+
+// Use this version of apply if you want to disable all updates.
+/* #define apply(...)                                            \ */
+/*     make_closure(run_apply, PP_NARG(__VA_ARGS__), __VA_ARGS__) */
+
+/* We use an gcc extension here! */
+/* The ## preceeding __VA_ARGS__ will eat the comma right before it if
+   __VA__ARGS__ is empty. */
+#define create_closure(name, ...)                                    \
+    make_closure(func_##name, PP_NARG(__VA_ARGS__), ##__VA_ARGS__)
+
 closure *run_apply(void)
 {
     size_t nfv = cur_closure->fv_cnt;
@@ -381,28 +404,10 @@ closure *prepare_upd(void)
     return start[0];
 }
 
-/* This is used to get the number of args in a __VA_ARGS__ list. */
-/* Idea from Stefan Reuther, fe5vsq.17c.1@stefan.msgid.phost.de */
-#define PP_NARG(...) (sizeof((closure *[]){__VA_ARGS__})/sizeof(closure *))
-
-#define apply(...)                                                  \
-    make_closure(prepare_upd, PP_NARG(__VA_ARGS__), __VA_ARGS__)
-/* #define apply(...)                                            \ */
-/*     make_closure(run_apply, PP_NARG(__VA_ARGS__), __VA_ARGS__) */
-
-/* We use an gcc extension here! */
-/* The ## preceeding __VA_ARGS__ will eat the comma right before it if
-   __VA__ARGS__ is empty. */
-#define create_closure(name, ...)                                    \
-    make_closure(func_##name, PP_NARG(__VA_ARGS__), ##__VA_ARGS__)
-
 closure *get_param(size_t i)
 {
     return arg_fp[arg_size - 1 - i];
 }
-
-#define def_closure(name) \
-    closure *func_##name(void)
 
 //////////////////////////////////////////////////////////////////////
 
@@ -464,14 +469,13 @@ closure *update_closure(void)
     return upd;
 }
 
-//#define need_args(n) assert(arg_size >= n)
-
 // 0. arg_size >= n : nothing happens
 //
 // 1. arg_size < n && upd_size > 0 : perform an update
 //
 // 2. arg_size < n && upd_size == 0 : we need to supply some dummy
-// variable(s) and print out the current function.
+// variable(s) and print out the current function (not implemented
+// yet).
 #define need_args(n)                            \
     do {                                        \
         if(arg_size < n) {                      \

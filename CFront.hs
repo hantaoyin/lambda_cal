@@ -5,29 +5,68 @@ import Transformer
 import StringQQ
 import Data.List
 
+-- type FreeVars = [Symbol]
+-- type Params = [Symbol]
+
 -- data LamExprI = UbSymI Symbol
 --              | BSymI Symbol
---              | LamI ID [Symbol] [Symbol] LamExprI
---              | AppI [Symbol] [LamExprI]
+--              | LamI ID FreeVars Params LamExprI
+--              | AppI FreeVars [LamExprI]
+
 ----------------------------------------------------------------------
--- compile 
+createSymbol :: Symbol -> String
+createSymbol sym = "create_ubsym(" ++ sym ++ ",\"" ++ sym ++ "\");\n"
+
+genAllUbSyms :: LamExprI -> String
+genAllUbSyms (UbSymI sym) = createSymbol sym
+genAllUbSyms (BSymI _) = ""
+genAllUbSyms (LamI _ fvs _ _) = concatMap createSymbol fvs
+genAllUbSyms (AppI fvs _) = concatMap createSymbol fvs
+
+
 callFunc :: String -> String -> String
 callFunc func arg = func ++ "(" ++ arg ++ ")"
 
 idToName :: Int -> String
-idToName n = "_cl_" ++ show n
+idToName n = "cl_" ++ show n
+
+genMakeClosure :: Int -> String
+genMakeClosure n = 
+    let n_str = show n
+        paramList = concatMap ((", closure *c" ++) . show) ([0..(n-1)]::[Int])
+        header = "closure *make_closure" ++ n_str ++ 
+                 "(func_ptr func" ++ paramList ++ ")\n"
+        body0 = "    closure *ret = alloc_heap(" ++ n_str ++ ");\n" ++
+                "    ret->code = func;\n" ++
+                "    ret->fv_cnt = " ++ n_str ++ ";\n"
+        body1 = if n == 0
+                then ""
+                else "\n    closure **fv_ptr = (closure **)(ret + 1);\n"
+        oneLine k = "    fv_ptr[" ++ show k ++ "] = c" ++ show k ++ ";\n"
+        body2 = concatMap oneLine $ ([0..(n-1)]::[Int])
+        body3 = "\n    return ret;\n"
+    in header ++ "{\n" ++ body0 ++ body1 ++ body2 ++ body3 ++ "}\n\n"
+               
+genAllMkClosures :: LamExprI -> String
+genAllMkClosures expr =
+    let go :: LamExprI -> [Int]
+        go (LamI _ fvs _ (AppI _ es)) = 
+            foldl union [length fvs] $ map go es
+        go (LamI _ fvs _ e) = union [length fvs] $ go e
+        go (AppI fvs es) = foldl union [1 + length fvs] $ map go es
+        go _ = []
+    in concatMap genMakeClosure $ sort $ go expr
 
 genClosureLine :: LamExprI -> String
 genClosureLine (UbSymI sym) = sym
 genClosureLine (BSymI sym) = sym
-genClosureLine (LamI n free_vars _ _) =
-    let fv_list =
-            if length free_vars == 0
-            then ""
-            else "," ++ intercalate "," free_vars
-    in callFunc "create_closure" $ idToName n ++ fv_list
+genClosureLine (LamI n fvs _ _) =
+    let fv_cnt = length fvs
+        fv_list = concatMap ("," ++) fvs
+    in callFunc ("make_closure" ++ show fv_cnt) $ idToName n ++ fv_list
 genClosureLine (AppI _ exprs) =
-    callFunc "apply" $ intercalate "," $ map genClosureLine exprs
+    let applyn = "make_closure" ++ (show $ length exprs) ++ "(prepare_upd,"
+    in applyn ++ (intercalate "," $ map genClosureLine exprs) ++ ")"
 
 genClosureBody :: String -> LamExprI -> String
 genClosureBody prefix (UbSymI sym) = prefix ++ sym ++ ";\n"
@@ -48,12 +87,6 @@ genFreeVars xs =
                    " = _fv_ptr[" ++ show n ++ "];\n"
     in header ++ concat (zipWith go [0..] xs)
 
-extractFreeVars :: LamExprI -> [Symbol]
-extractFreeVars (UbSymI sym) = [sym]
-extractFreeVars (BSymI sym) = [sym]
-extractFreeVars (LamI _ free_vars _ _) = free_vars
-extractFreeVars (AppI free_vars _) = free_vars
-
 genBndVars :: [Symbol] -> [Symbol] -> String
 genBndVars xs ys =
     let go :: Int -> Symbol -> String
@@ -61,7 +94,7 @@ genBndVars xs ys =
                    then "    closure *" ++ sym ++
                         " = get_param(" ++ show n ++ ");\n"
                    else ""
-    in concat $ zipWith go [0 ..] xs
+    in concat $ zipWith go [0..] xs
 
 genDebugComment :: LamExprI -> String
 genDebugComment expr = "// " ++ shortShow expr ++ "\n"
@@ -70,19 +103,17 @@ genClosureDef :: LamExprI -> String
 genClosureDef lamexpr@(LamI n fvs bvs expr) =
     let nbnd_var = show $ length bvs
         debug_info = genDebugComment lamexpr
-        header = (callFunc "def_closure" $ idToName n) ++ "\n"
+        header = "closure *" ++ idToName n ++ "(void)\n"
         need_args = "    need_args(" ++ nbnd_var ++ ");\n"
         pop_stack = "    pop(" ++ nbnd_var ++ ");\n"
         body = genClosureBody "    return " expr
     in debug_info ++
-       header ++ 
-       "{\n" ++ 
+       header ++ "{\n" ++ 
        need_args ++ 
-       genBndVars bvs (extractFreeVars expr)++
+       genBndVars bvs (getFreeVars expr)++
        pop_stack ++ 
        genFreeVars fvs ++ 
-       body ++ 
-       "}\n\n"
+       body ++ "}\n\n"
 genClosureDef _ = error "FIXME: can't call me on any non-lambda expr."
    
 genAllClosures :: LamExprI -> String
@@ -91,17 +122,6 @@ genAllClosures v@(LamI _ _ _ body) =
 genAllClosures (AppI _ exprs) = 
     concatMap genAllClosures exprs
 genAllClosures _ = ""
-
-createSymbol :: Symbol -> String
-createSymbol sym = "create_ubsym(" ++ sym ++ ",\"" ++ sym ++ "\");\n"
-
-genAllUbSyms :: LamExprI -> String
-genAllUbSyms (UbSymI sym) = createSymbol sym
-genAllUbSyms (BSymI _) = ""
-genAllUbSyms (LamI _ free_vars _ _) = 
-    concatMap createSymbol free_vars
-genAllUbSyms (AppI free_vars _) = 
-    concatMap createSymbol free_vars
 
 genMainPrefix :: String
 genMainPrefix = [stringQQ|
@@ -125,6 +145,7 @@ genMainPostfix = [stringQQ|
 compile :: LamExprI -> String
 compile expr = 
     genAllUbSyms expr ++ "\n" ++
+    genAllMkClosures expr ++
     genAllClosures expr ++
     genDebugComment expr ++
     genMainPrefix ++
