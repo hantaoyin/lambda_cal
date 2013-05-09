@@ -25,6 +25,11 @@ typedef struct closure {
     size_t fv_cnt;
 } closure;
 
+size_t closure_size(closure *p)
+{
+    return sizeof(closure) + sizeof(closure *) * p->fv_cnt;
+}
+
 typedef struct update_frame {
     closure **arg_fp;
     closure **ret_fp;
@@ -164,7 +169,7 @@ closure *move(closure *src)
     } else if(src->code == run_ubsym) {
         return src;
     } else {
-        size_t mysize = sizeof(closure) + sizeof(closure *) * src->fv_cnt;
+        size_t mysize = closure_size(src);
         size_t offset = heap_size;
         closure *dst = alloc_heap(src->fv_cnt);
 
@@ -181,7 +186,7 @@ void move_all_bfs(size_t start)
 {
     while(start < heap_size) {
         closure *p = (closure *)(heap + start);
-        start += sizeof(closure) + sizeof(closure *) * p->fv_cnt;
+        start += closure_size(p);
 
         if(p->fv_cnt == 0 || p->code == black_hole) continue;
 
@@ -262,11 +267,6 @@ void gc(void)
     for(i = 0; i < ret_total; ++i) {
         ret_base[i] = move(ret_base[i]);
     }
-
-    /* for(i = 0; i < upd_size; ++i) { */
-    /*     upd_base[i].updatable = */
-    /*         move(upd_base[i].updatable); */
-    /* } */
 
     move_all_bfs(0);
     if(upd_size > 0) {
@@ -453,11 +453,6 @@ closure *run_apply(void)
     return start[0];
 }
 
-void clear_reference(closure *p)
-{
-    p->code = black_hole;
-}
-
 closure *prepare_upd(void)
 {
     push_upd_frame();
@@ -474,7 +469,7 @@ closure *prepare_upd(void)
     }
 
     closure *ret = start[0];
-    clear_reference(cur_closure);
+    cur_closure->code = black_hole;
     return ret;
 }
 
