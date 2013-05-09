@@ -128,8 +128,8 @@ define (chess-search valid-queen?) \queen-search ->
 ;; factorial 3 f x
 ;; length (cons 1 (cons 2 (cons 3 nil))) f x
 ;; choose 10 2 f x
-queen-search 8 f x
-;; (\n f g x -> (n f) (n g x)) (queen-search 8) f g x
+;; queen-search 8 f x
+(\n f g x -> (n f) (n g x)) (queen-search 8) f g x
 ;; (\n f g x -> (n p f) (n p g x)) (\x -> queen-search 8) f g x
 ;; define (succ 11) \12 ->
 ;; exp 2 12 f x

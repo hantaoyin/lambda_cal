@@ -64,7 +64,7 @@ genClosureLine (LamI n fvs _ _) =
         fv_list = concatMap ("," ++) fvs
     in callFunc ("make_closure" ++ show fv_cnt) $ idToName n ++ fv_list
 genClosureLine (AppI _ exprs) =
-    let applyn = "make_closure" ++ (show $ length exprs) ++ "(run_apply,"
+    let applyn = "make_closure" ++ (show $ length exprs) ++ "(apply_upd,"
     in applyn ++ (intercalate "," $ map genClosureLine exprs) ++ ")"
 
 genClosureBody :: String -> LamExprI -> String

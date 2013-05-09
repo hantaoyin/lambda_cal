@@ -9,8 +9,8 @@
 #define GEN_TIMING_INFO
 
 #define ARG_SIZE_MAX 5000
-#define RET_SIZE_MAX 50000
-#define UPD_SIZE_MAX 5000
+#define RET_SIZE_MAX 5000
+#define UPD_SIZE_MAX 50000
 #define HEAP_SIZE_MAX 1500000
 
 //#define NDEBUG
@@ -28,8 +28,6 @@ typedef struct closure {
 typedef struct update_frame {
     closure **arg_fp;
     closure **ret_fp;
-    size_t arg_size;
-    size_t ret_size;
     closure *updatable;
 } update_frame;
 
@@ -62,6 +60,9 @@ struct timespec main_start;
 struct timespec main_end;
 long main_time;
 long gc_time;
+unsigned long long total_alloc = 0;
+unsigned long long gc_copied = 0;
+unsigned long long gc_calls = 0;
 #endif
 
 void initialize(void)
@@ -91,9 +92,15 @@ void finalize(void)
     main_time += (main_end.tv_sec - main_start.tv_sec) * 1000000000L
         + main_end.tv_nsec - main_start.tv_nsec;
     
+    printf("\n\n");
+    printf("%20llu bytes allocated in the heap.\n", total_alloc + heap_size);
+    printf("%20llu bytes copied during GC.\n", gc_copied);
+    printf("%20llu calls to GC.\n", gc_calls);
+
     printf("\n\nTotal time = %.3f seconds\n", main_time / 1.0e9);
     printf("   GC time = %.3f seconds\n", gc_time / 1.0e9);
     printf("  %%GC time = %.3f%%\n", 100.0 * (double)gc_time / main_time);
+
 #endif
 }
 
@@ -117,6 +124,14 @@ void panic(char *p)
 
 closure *run_ubsym(void);
 closure *run_indirection(void);
+
+// This function is used when an updatable closure is entered (we mark
+// it so it can not be entered again).
+closure *black_hole(void)
+{
+    panic("PANIC: we have entered a black hole, no way back!");
+    return NULL;
+}
 
 // Move a closure to its new home and return a pointer to the new
 // closure.  We put a redirection struct in the old place so any
@@ -162,10 +177,61 @@ closure *move(closure *src)
     }
 }
 
+void move_all_bfs(size_t start)
+{
+    while(start < heap_size) {
+        closure *p = (closure *)(heap + start);
+        start += sizeof(closure) + sizeof(closure *) * p->fv_cnt;
+
+        if(p->fv_cnt == 0 || p->code == black_hole) continue;
+
+        closure **fv_ptr = (closure **)(p + 1);
+
+        size_t i;
+        for(i = 0; i < p->fv_cnt; ++i) {
+            fv_ptr[i] = move(fv_ptr[i]);
+        }
+    }
+    assert(start == heap_size);
+}
+
 // I have some ad hoc condition here to test if I need GC.
 static inline _Bool need_gc(void)
 {
     return heap_size * 1.1 > HEAP_SIZE_MAX;
+}
+
+void move_upd_frame(void)
+{
+    closure **arg_pt = arg_base;
+    closure **ret_pt = ret_base;
+
+    size_t i = 0;
+    size_t j = 0;
+    for(i = 0; i < upd_size; ++i) {
+        if(arg_pt == NULL) {
+            arg_pt = upd_base[i].arg_fp;
+            ret_pt = upd_base[i].ret_fp;
+        }
+
+        closure *p = upd_base[i].updatable;
+        if(p->code == black_hole) continue;
+        
+        upd_base[j].arg_fp = arg_pt;
+        upd_base[j].ret_fp = ret_pt;
+        upd_base[j].updatable = move(p);
+        ++j;
+        arg_pt = NULL;
+        ret_pt = NULL;
+    }
+    upd_size = j;
+
+    if(arg_pt != NULL) {
+        arg_size += arg_fp - arg_pt;
+        ret_size += ret_fp - ret_pt;
+        arg_fp = arg_pt;
+        ret_fp = ret_pt;
+    }
 }
 
 void gc(void)
@@ -173,6 +239,9 @@ void gc(void)
 #ifdef GEN_TIMING_INFO
     struct timespec tsc0;
     clock_gettime(CLOCK_REALTIME, &tsc0);
+
+    ++gc_calls;
+    total_alloc += heap_size;
 #endif
 
     char *tmp = heap;
@@ -194,25 +263,15 @@ void gc(void)
         ret_base[i] = move(ret_base[i]);
     }
 
-    for(i = 0; i < upd_size; ++i) {
-        upd_base[i].updatable =
-            move(upd_base[i].updatable);
+    /* for(i = 0; i < upd_size; ++i) { */
+    /*     upd_base[i].updatable = */
+    /*         move(upd_base[i].updatable); */
+    /* } */
+
+    move_all_bfs(0);
+    if(upd_size > 0) {
+        move_upd_frame();
     }
-
-    size_t finalized = 0;
-    while(finalized < heap_size) {
-        closure *p = (closure *)(heap + finalized);
-        if(p->fv_cnt > 0) {
-            closure **fv_ptr = (closure **)(p + 1);
-
-            size_t i;
-            for(i = 0; i < p->fv_cnt; ++i) {
-                fv_ptr[i] = move(fv_ptr[i]);
-            }
-        }
-        finalized += sizeof(closure) + sizeof(closure *) * p->fv_cnt;
-    }
-
 
 #ifdef GEN_TIMING_INFO
     struct timespec tsc1;
@@ -220,6 +279,8 @@ void gc(void)
 
     gc_time += (tsc1.tv_sec - tsc0.tv_sec) * 1000000000L
         + tsc1.tv_nsec - tsc0.tv_nsec;
+
+    gc_copied += heap_size;
 #endif
 }
 
@@ -255,8 +316,6 @@ void push_upd_frame(void)
 
     upd_base[upd_size].arg_fp = arg_fp;
     upd_base[upd_size].ret_fp = ret_fp;
-    upd_base[upd_size].arg_size = arg_size;
-    upd_base[upd_size].ret_size = ret_size;
     upd_base[upd_size].updatable = cur_closure;
 
     arg_fp += arg_size;
@@ -272,10 +331,11 @@ void pop_upd_frame(void)
     assert(upd_size > 0);
 
     --upd_size;
+    arg_size += arg_fp - upd_base[upd_size].arg_fp;
+    ret_size += ret_fp - upd_base[upd_size].ret_fp;
+
     arg_fp = upd_base[upd_size].arg_fp;
     ret_fp = upd_base[upd_size].ret_fp;
-    arg_size = upd_base[upd_size].arg_size;
-    ret_size = upd_base[upd_size].ret_size;
 }
 
 closure *my_halt(void)
@@ -319,11 +379,12 @@ void move_arg(void)
 // in the output.
 //
 // How can I solve this problem?
-closure *update_closure(void);
+void update_closure(void);
 closure *run_ubsym(void)
 {
     if(need_update()) {
-        return update_closure();
+        update_closure();
+        return cur_closure;
     }
 
     char *symbol = (char *)(cur_closure + 1);
@@ -375,6 +436,9 @@ closure *make_closure(func_ptr func, size_t n, ...)
 #define create_closure(name, ...)                                    \
     make_closure(func_##name, PP_NARG(__VA_ARGS__), ##__VA_ARGS__)
 
+//#define apply_upd run_apply
+#define apply_upd prepare_upd
+
 closure *run_apply(void)
 {
     size_t nfv = cur_closure->fv_cnt;
@@ -389,12 +453,18 @@ closure *run_apply(void)
     return start[0];
 }
 
+void clear_reference(closure *p)
+{
+    p->code = black_hole;
+}
+
 closure *prepare_upd(void)
 {
     push_upd_frame();
 
-    size_t nfv = cur_closure->fv_cnt;
-    closure **start = (closure **)(cur_closure + 1);
+    closure *p = cur_closure;
+    size_t nfv = p->fv_cnt;
+    closure **start = (closure **)(p + 1);
 
     assert(nfv >= 1);
 
@@ -402,7 +472,10 @@ closure *prepare_upd(void)
     for(i = nfv - 1; i > 0; --i) {
         push(start[i]);
     }
-    return start[0];
+
+    closure *ret = start[0];
+    clear_reference(cur_closure);
+    return ret;
 }
 
 closure *get_param(size_t i)
@@ -449,26 +522,22 @@ void fill_ind_info(closure *src, closure *dst)
     fv_ptr[0] = dst;
 }
 
-closure *update_closure(void)
+void update_closure(void)
 {
     assert(ret_size == 0);
     size_t upd_nfv = arg_size + 1;
 
     closure *old = upd_base[upd_size - 1].updatable;
-
-    closure *upd;
     if(arg_size == 0) {
         fill_ind_info(old, cur_closure);
-        upd = cur_closure;
     } else if(upd_nfv <= old->fv_cnt) {
-        upd = make_upd(old);
+        make_upd(old);
     } else { // indirection
-        upd = make_upd(NULL);
+        closure *upd = make_upd(NULL);
         fill_ind_info(old, upd);
     }
 
     pop_upd_frame();
-    return upd;
 }
 
 // 0. arg_size >= n : nothing happens
@@ -482,9 +551,11 @@ closure *update_closure(void)
     do {                                        \
         if(arg_size < n) {                      \
             if(need_update()) {                 \
-                return update_closure();        \
+                update_closure();               \
+                return cur_closure;             \
             } else {                            \
                 assert(0);                      \
             }                                   \
         }                                       \
     } while(0)
+
