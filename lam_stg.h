@@ -400,42 +400,6 @@ closure *run_ubsym(void)
     return run_next();
 }
 
-closure *make_closure(func_ptr func, size_t n, ...)
-{
-    closure *ret = alloc_heap(n);
-    ret->code = func;
-    ret->fv_cnt = n;
-
-    closure **fv_ptr = (closure **)(ret + 1);
-    va_list args;
-    va_start(args, n);
-
-    size_t i;
-    for(i = 0; i < n; ++i) {
-        fv_ptr[i] = va_arg(args, closure *);
-    }
-    va_end(args);
-
-    return ret;
-}
-
-/* This is used to get the number of args in a __VA_ARGS__ list. */
-/* Idea from Stefan Reuther, fe5vsq.17c.1@stefan.msgid.phost.de */
-#define PP_NARG(...) (sizeof((closure *[]){__VA_ARGS__})/sizeof(closure *))
-
-#define apply(...)                                                  \
-    make_closure(prepare_upd, PP_NARG(__VA_ARGS__), __VA_ARGS__)
-
-// Use this version of apply if you want to disable all updates.
-/* #define apply(...)                                            \ */
-/*     make_closure(run_apply, PP_NARG(__VA_ARGS__), __VA_ARGS__) */
-
-/* We use an gcc extension here! */
-/* The ## preceeding __VA_ARGS__ will eat the comma right before it if
-   __VA__ARGS__ is empty. */
-#define create_closure(name, ...)                                    \
-    make_closure(func_##name, PP_NARG(__VA_ARGS__), ##__VA_ARGS__)
-
 //#define apply_upd run_apply
 #define apply_upd prepare_upd
 
