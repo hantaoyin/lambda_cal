@@ -65,7 +65,7 @@ define (define (\f p ->
                   if (isnil p)
                   0
                   (succ (f (cdr p)))) \YFunc ->
-                  (Ycomb YFunc)) \length ->
+                  Ycomb YFunc) \length ->
 
 ;; Lists from Pierce
 ;; define (\c n -> n) \nil ->
