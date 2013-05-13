@@ -5,23 +5,29 @@ import Transformer
 import StringQQ
 import Data.List
 
--- type FreeVars = [Symbol]
--- type Params = [Symbol]
+-- type Name = Symbol
+-- type FreeVars = [Name]
+-- type Params = [Name]
 
--- data LamExprI = UbSymI Symbol
---              | BSymI Symbol
+-- data LamExprI = UbSymI Name Symbol
+--              | BSymI Name
 --              | LamI ID FreeVars Params LamExprI
 --              | AppI FreeVars [LamExprI]
-
 ----------------------------------------------------------------------
-createSymbol :: Symbol -> String
-createSymbol sym = "create_ubsym(" ++ sym ++ ",\"" ++ sym ++ "\");\n"
+createSymbol :: (Name,Symbol) -> String
+createSymbol (name,sym) = 
+    "create_ubsym(" ++ name ++ "," ++ show sym ++ ");\n"
+
+findAllUbSyms :: LamExprI -> [(Name,Symbol)]
+findAllUbSyms (UbSymI name sym) = [(name,sym)]
+findAllUbSyms (LamI _ _ _ expr) = findAllUbSyms expr
+findAllUbSyms (AppI _ exprs) = 
+    foldl union [] $ map findAllUbSyms exprs
+findAllUbSyms _ = []
 
 genAllUbSyms :: LamExprI -> String
-genAllUbSyms (UbSymI sym) = createSymbol sym
-genAllUbSyms (BSymI _) = ""
-genAllUbSyms (LamI _ fvs _ _) = concatMap createSymbol fvs
-genAllUbSyms (AppI fvs _) = concatMap createSymbol fvs
+genAllUbSyms expr =
+    concatMap createSymbol $ findAllUbSyms expr
 
 callFunc :: String -> String -> String
 callFunc func arg = func ++ "(" ++ arg ++ ")"
@@ -57,7 +63,7 @@ genAllMkClosures expr =
     in concatMap genMakeClosure $ sort $ go expr
 
 genClosureLine :: LamExprI -> String
-genClosureLine (UbSymI sym) = sym
+genClosureLine (UbSymI name _) = name
 genClosureLine (BSymI sym) = sym
 genClosureLine (LamI n fvs _ _) =
     let fv_cnt = length fvs
@@ -68,7 +74,7 @@ genClosureLine (AppI _ exprs) =
     in applyn ++ (intercalate "," $ map genClosureLine exprs) ++ ")"
 
 genClosureBody :: String -> LamExprI -> String
-genClosureBody prefix (UbSymI sym) = prefix ++ sym ++ ";\n"
+genClosureBody prefix (UbSymI name _) = prefix ++ name ++ ";\n"
 genClosureBody prefix (BSymI sym)  = prefix ++ sym ++ ";\n"
 genClosureBody prefix v@(LamI _ _ _ _) =
     prefix ++ genClosureLine v ++ ";\n"
@@ -80,10 +86,10 @@ genClosureBody prefix (AppI _ exprs) =
 genFreeVars :: [Symbol] -> String
 genFreeVars [] = ""
 genFreeVars xs = 
-    let header = "    closure **_fv_ptr = (closure **)(cur_closure + 1);\n"
+    let header = "    closure **fv_ptr = (closure **)(cur_closure + 1);\n"
         go :: Int -> Symbol -> String
         go n sym = "    closure *" ++ sym ++ 
-                   " = _fv_ptr[" ++ show n ++ "];\n"
+                   " = fv_ptr[" ++ show n ++ "];\n"
     in header ++ concat (zipWith go [0..] xs)
 
 genBndVars :: [Symbol] -> [Symbol] -> String

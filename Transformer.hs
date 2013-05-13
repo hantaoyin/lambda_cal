@@ -1,7 +1,8 @@
-module Transformer (rename, ID, FreeVars, Params,
+module Transformer (rename, ID, Name, FreeVars, Params,
                    LamDeBruijn(..), toDeBruijn,
                    LamExprI(..), getFreeVars, toLamExprI, shortShow) where
 import Data.List
+import Data.Maybe
 import LamParser
 
 -- data LamExpr = Sym Symbol
@@ -120,25 +121,26 @@ nameLam expr =
     in expr'
                         
 ----------------------------------------------------------------------
-type FreeVars = [Symbol]
-type Params = [Symbol]
+type Name = Symbol
+type FreeVars = [Name]
+type Params = [Name]
 
-data LamExprI = UbSymI Symbol
-             | BSymI Symbol
+data LamExprI = UbSymI Name Symbol
+             | BSymI Name
              | LamI ID FreeVars Params LamExprI
              | AppI FreeVars [LamExprI]
 
-getFreeVars :: LamExprI -> [Symbol]
-getFreeVars (UbSymI sym) = [sym]
-getFreeVars (BSymI sym) = [sym]
-getFreeVars (LamI _ syms _ _) = syms
-getFreeVars (AppI syms _) = syms
+getFreeVars :: LamExprI -> [Name]
+getFreeVars (UbSymI name _) = [name]
+getFreeVars (BSymI name) = [name]
+getFreeVars (LamI _ names _ _) = names
+getFreeVars (AppI names _) = names
 
 extractInfo :: [Symbol] -> LamExprF -> LamExprI
 extractInfo env (SymF sym) =
     let dbv = lookupSym env sym
     in if dbv < 0
-       then UbSymI sym
+       then UbSymI sym $ error "unnamed free variable!"
        else BSymI sym
 
 extractInfo env (LamF n syms expr) = 
@@ -152,13 +154,35 @@ extractInfo env (AppF as) =
         symlist = foldl' union [] $ map getFreeVars ais
     in AppI symlist ais
 
+renFreeVarsHelper :: [(Symbol,Name)] -> LamExprI -> LamExprI
+renFreeVarsHelper env (UbSymI sym _) =
+    UbSymI (fromJust $ lookup sym env) sym
+renFreeVarsHelper _ v@(BSymI _) = v
+renFreeVarsHelper env (LamI n fvs ps expr) =
+    LamI n (map (\x -> fromMaybe x $ lookup x env) fvs) ps 
+         $ renFreeVarsHelper env expr
+renFreeVarsHelper env (AppI fvs exprs) =
+    AppI (map (\x -> fromMaybe x $ lookup x env) fvs) 
+         $ map (renFreeVarsHelper env) exprs
+
+genFreeVarNames :: [Symbol] -> [(Symbol,Name)]
+genFreeVarNames syms = 
+    zip syms $ map (("f" ++) . show) ([0..] :: [Int])
+
+renFreeVars :: LamExprI -> LamExprI
+renFreeVars expr = 
+    let fv_list = getFreeVars expr
+        env = genFreeVarNames fv_list
+    in renFreeVarsHelper env expr
+
 toLamExprI :: LamExpr -> LamExprI
-toLamExprI = extractInfo [] . nameLam . toLamExprF
+toLamExprI = renFreeVars . extractInfo [] . nameLam . toLamExprF
 
 instance Show LamExprI where show = showLamExprI
 
 showLamExprI :: LamExprI -> String
-showLamExprI (UbSymI sym) = sym
+showLamExprI (UbSymI name sym) =
+    "(" ++ name ++ "," ++ show sym ++ ")"
 showLamExprI (BSymI sym) = sym
 showLamExprI (LamI n vs xs expr) = 
     "\n{" ++ intercalate "," vs ++ "} [" ++ show n ++ "]\\{" ++
@@ -172,7 +196,8 @@ showLamExprI (AppI _ exprs) =
 
 -- A simpler version, don't delve into nested lambdas.
 shortShowHelper :: LamExprI -> String
-shortShowHelper (UbSymI sym) = sym
+shortShowHelper (UbSymI name sym) = 
+    "(" ++ name ++ "," ++ show sym ++ ")"
 shortShowHelper (BSymI sym) = sym
 shortShowHelper (LamI n vs _ _) = 
     "\\Lam [" ++ show n ++ "] {" ++ intercalate "," vs ++ "}"

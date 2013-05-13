@@ -52,7 +52,7 @@ pVar = do
 
 pName :: Parser Symbol
 pName = do
-    cs <- many1 (oneOf "+-*/<>=!@%&_?" <|> alphaNum)
+    cs <- many1 (oneOf "+-*/<>=!@%&_?\"" <|> alphaNum)
     if cs `elem` ["->", "--"]
     then fail ""
     else return cs
